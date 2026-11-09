@@ -240,8 +240,14 @@ body.dnd, body.dnd * { cursor: grabbing !important; user-select: none; -webkit-u
 .gs .ntw { display: flex; align-items: center; gap: 2px; }
 .gs td.tl { white-space: nowrap; text-align: right; }  
 
-.cw input.cbx { width: 100%; }
-.gs input.cbx { width: 7.5em; }
+.cw input.cbx[data-ab] { width: 100%; }
+.gs input.cbx[data-ab] { width: 7.5em; }
+.tinp input.cbx { width: 100%; }
+.cbx-pop button > span { min-width: 0; overflow-wrap: anywhere; }
+.cbx-pop button > small { flex: none; }
+
+.gs .swapb { border: 0; background: none; padding: 0; font: inherit; font-weight: 700; color: inherit; text-align: left; cursor: pointer; text-decoration: underline dashed var(--box); text-underline-offset: 3px; text-decoration-thickness: 1px; }
+.gs .swapb:hover { color: var(--accent-text); text-decoration-color: currentColor; }
 .cbx-pop { position: fixed; z-index: 75; display: grid; align-content: start; overflow-y: auto; padding: 4px; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 12px 32px rgb(0 0 0 / 0.22); }
 .cbx-pop button { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; text-align: left; border: 0; background: none; padding: 6px 8px; border-radius: 7px; font-size: 14px; color: var(--ink); }
 .cbx-pop button small { color: var(--muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -495,6 +501,7 @@ button.pill { border: 0; cursor: pointer; }
 .pop-n .btn { padding: 6px 12px; font-size: 14px; }
 
 .sheet-panel.wide { width: min(100%, 76rem); }
+.sheet-panel input:focus-visible, .sheet-panel textarea:focus-visible, .sheet-panel select:focus-visible { outline-offset: -2px; }  
 .txa { width: 100%; min-height: 15em; border: 1px solid var(--line); border-radius: 10px; background: var(--bg2); color: var(--ink); padding: 10px 12px; font: 13.5px/1.55 ui-monospace, SFMono-Regular, Menlo, monospace; resize: vertical; box-sizing: border-box; }
 .imp { display: grid; gap: 14px; grid-template-columns: minmax(0, 1fr); }
 .imp > * { min-width: 0; }
@@ -552,12 +559,10 @@ button.pill { border: 0; cursor: pointer; }
 [data-skin="b"] .colh .dwd { font-size: 14px; font-weight: 700; color: var(--muted); }
 [data-skin="b"] .colh small { font-weight: 400; font-size: 12.5px; line-height: 1.35; color: var(--ink2); }
 [data-skin="b"] .colh small + small { color: var(--muted); }
-[data-skin="b"] .gt th.next .colh .dnum { color: var(--accent-text); }
 [data-skin="b"] .gt th.next .colh small { color: var(--ink2); opacity: 1; }
 [data-skin="b"] .gt th.next .colh small + small { color: var(--muted); }
 [data-skin="b"] .gt th.next .colh .d svg { color: var(--muted); opacity: 1; }
-[data-skin="b"] .gt td.nextc { background: color-mix(in srgb, var(--accent) 7%, var(--bg)); }
-[data-skin="b"] .gt td.nextc.me, [data-skin="b"] .gt td.me { background: var(--accent-soft); }
+[data-skin="b"] .gt td.me { background: var(--accent-soft); }  
 [data-skin="b"] .gt .pastc { opacity: 0.5; }
 [data-skin="b"] .gt td.none { background: none; }
 [data-skin="b"] .gt td.empty { font-weight: 700; }
@@ -1375,7 +1380,26 @@ function canonPeople(v, role) {
     return p ? x.replace(c, p.name) : x;
   }).filter(Boolean).join(" / ");
 }
-const CBX = { inp: null, typed: false, hi: -1 };
+const RU_KB = "йцукенгшщзхъфывапролджэячсмитьбю", EN_KB = "qwertyuiop[]asdfghjkl;'zxcvbnm,.";
+const fromLat = (s) => (s || "").toLowerCase().replace(/[a-z\[\];',.]/g, (c) => RU_KB[EN_KB.indexOf(c)] || c);
+function rankOf(k, t) {
+  if (t === k) return 0;
+  if (t.startsWith(k)) return 1;
+  if ((" " + t).includes(" " + k)) return 2;
+  if (t.includes(k)) return 3;
+  const ws = t.split(" "), ts = k.split(" ");
+  if (ts.length > 1 && ts.every((x) => ws.some((w) => w.startsWith(x)))) return 4;
+  if (k.length >= 4) { const lim = k.length >= 7 ? 2 : 1; if (ws.some((w) => lev(k, w.slice(0, k.length)) <= lim) || lev(k, t.slice(0, k.length)) <= lim) return 5; }
+  return -1;
+}
+function rankMap(q, items, texts) {
+  const run = (k) => { const m = new Map(); items.forEach((x) => { let b = 99; texts(x).forEach((t) => { if (!t) return; const v = rankOf(k, norm(t)); if (v >= 0 && v < b) b = v; }); if (b < 99) m.set(x, b); }); return m; };
+  const k = norm(q); if (!k) return null;
+  const m = run(k); if (m.size || !/[a-z]/i.test(q)) return m;
+  return run(norm(fromLat(q)));
+}
+const search = (q, items, texts) => { const m = rankMap(q, items, texts); return m ? items.filter((x) => m.has(x)).sort((a, b) => m.get(a) - m.get(b)) : items; };
+const CBX = { inp: null, typed: false, hi: -1, quiet: false };
 const cbxSeg = (v) => { const i = v.lastIndexOf("/"); return i < 0 ? ["", v] : [v.slice(0, i + 1) + " ", v.slice(i + 1)]; };
 function cbxBase(inp) {
   const act = inp.dataset.act, ab = inp.dataset.ab;
@@ -1384,27 +1408,55 @@ function cbxBase(inp) {
   return [["", "— никого"], ["???", "??? — пока не знаем"], ...(ab === "FOH" ? [["Местный", "Местный — звукач площадки"]] : [])];
 }
 function cbxGroups(ab, q) {
-  const all = Object.values(R), k = norm(q);
-  const hit = (p) => !k || [p.name, ...p.alias, fullOf(p.key)].some((x) => norm(x).includes(k));
-  const first = (p) => (k && !norm(p.name).startsWith(k) ? 1 : 0), byName = (a, b) => a.name.localeCompare(b.name, "ru");
+  const all = Object.values(R), m = rankMap(q, all, (p) => [p.name, ...p.alias, fullOf(p.key)]);
+  const hit = (p) => !m || m.has(p), first = (p) => (m ? m.get(p) : 0), byName = (a, b) => a.name.localeCompare(b.name, "ru");
   const can = all.filter((p) => p.active && p.abil.has(ab) && hit(p)).sort((a, b) => first(a) - first(b) || (b.counts[ab] || 0) - (a.counts[ab] || 0) || byName(a, b));
   const rest = all.filter((p) => p.active && !p.abil.has(ab) && hit(p)).sort((a, b) => first(a) - first(b) || byName(a, b));
-  const arch = k ? all.filter((p) => !p.active && hit(p)).sort(byName) : [];
+  const arch = m ? all.filter((p) => !p.active && hit(p)).sort((a, b) => first(a) - first(b) || byName(a, b)) : [];
   return [["Служат здесь", can], ["Остальные", rest], ["В архиве", arch]].filter(([, l]) => l.length);
 }
-function cbxDraw() {
-  const inp = CBX.inp; if (!inp || !inp.isConnected) return cbxClose();
-  const seg = cbxSeg(inp.value)[1].trim(), q = CBX.typed ? seg : "", ab = inp.dataset.ab, cur = norm(clean(seg)), k = norm(q);
-  const opt = (v, label, extra = "") => `<button type="button" role="option" tabindex="-1" data-v="${esc(v)}"${extra}>${label}</button>`;
-  const base = cbxBase(inp).filter(([, l]) => !k || norm(l).includes(k)).map(([v, l]) => opt(v, esc(l), ` class="cbx-b"${!CBX.typed && v === inp.value ? ' aria-current="true"' : ""}`)).join("");
-  const groups = cbxGroups(ab, q), ppl = groups.map(([t, l]) => `<div class="cbx-g">${t}</div>` + l.map((p) => opt(p.name, `<span>${esc(p.name)}</span>${k && fullOf(p.key) && !norm(p.name).includes(k) ? `<small>${esc(fullOf(p.key))}</small>` : ""}`, !CBX.typed && norm(p.name) === cur ? ' aria-current="true"' : "")).join("")).join("");
-  const free = k && !groups.some(([, l]) => l.some((p) => norm(p.name) === k)) && !/^[—–-]+$/.test(q) ? opt(q, `Оставить «${esc(q)}»`, ' class="cbx-free"') : "";
+const CBX_LISTS = {
+  sec: () => SEC_PRESETS.map((x) => [x, esc(x)]), start: () => STARTS.map((x) => [x, startTxt(x)]), titles: () => TITLES.map((x) => [x, esc(x)]), places: () => PLACES.map((x) => [x, esc(x)]),
+  spell: (inp) => { const p = R[inp.dataset.p]; return p ? [...new Set([p.name, ...p.alias])].map((n) => [n, esc(n)]) : []; },
+};
+function cbxEl() {
   let el = $("#cbx");
   if (!el) {
     el = document.createElement("div"); el.id = "cbx"; el.className = "cbx-pop"; el.setAttribute("role", "listbox"); document.body.append(el);
     el.addEventListener("mousedown", (ev) => ev.preventDefault());
     el.addEventListener("click", (ev) => { const b = ev.target.closest("[data-v]"); if (b) cbxPick(b.dataset.v); });
   }
+  return el;
+}
+function cbxDrawList(inp) {
+  const mode = inp.dataset.cbx, q = CBX.typed ? inp.value.trim() : "", k = norm(q), cur = inp.value.trim();
+  const opt = (v, label, extra = "") => `<button type="button" role="option" tabindex="-1" data-v="${esc(v)}"${!CBX.typed && v === cur ? ' aria-current="true"' : ""}${extra}>${label}</button>`;
+  let html = "", hi = -1;
+  if (mode === "song") {
+    const ev = D.events[+inp.dataset.ev], iso = ev ? ev.date : TODAY, found = search(q, songNames(), (n) => [n]).slice(0, 80);
+    const one = (n) => opt(n, `<span>${esc(n)}</span><small>${esc(songMeta(n, iso))}</small>`), top = k ? [] : oftenSongs(12);
+    html = (top.length ? `<div class="cbx-g">Часто в графике</div>${top.map(one).join("")}<div class="cbx-g">Все по алфавиту</div>` : "") + found.map(one).join("");
+    if (k && !found.some((n) => norm(n) === k)) html += opt(q, `Добавить «${esc(q)}» — нет в библиотеке`, ' class="cbx-free"');
+    hi = k ? 0 : -1;
+  } else {
+    const found = search(q, (CBX_LISTS[inp.dataset.opts] || (() => []))(inp), ([v]) => [v]);
+    html = found.map(([v, l]) => opt(v, l)).join("");
+    hi = k && found.length && norm(found[0][0]).startsWith(k) ? 0 : -1;
+    if (!html) { const el = $("#cbx"); if (el) el.remove(); inp.setAttribute("aria-expanded", "false"); return; }
+  }
+  const el = cbxEl(); el.innerHTML = html || '<span class="muted">Ничего похожего</span>';
+  CBX.hi = hi; inp.setAttribute("aria-expanded", "true"); cbxHi(); cbxPlace();
+  if (!k) { const c = el.querySelector("[aria-current]"); if (c) c.scrollIntoView({ block: "nearest" }); }
+}
+function cbxDraw() {
+  const inp = CBX.inp; if (!inp || !inp.isConnected) return cbxClose();
+  if (inp.dataset.cbx) return cbxDrawList(inp);
+  const seg = cbxSeg(inp.value)[1].trim(), q = CBX.typed ? seg : "", ab = inp.dataset.ab, cur = norm(clean(seg)), k = norm(q);
+  const opt = (v, label, extra = "") => `<button type="button" role="option" tabindex="-1" data-v="${esc(v)}"${extra}>${label}</button>`;
+  const base = cbxBase(inp).filter(([, l]) => !k || norm(l).includes(k)).map(([v, l]) => opt(v, esc(l), ` class="cbx-b"${!CBX.typed && v === inp.value ? ' aria-current="true"' : ""}`)).join("");
+  const groups = cbxGroups(ab, q), ppl = groups.map(([t, l]) => `<div class="cbx-g">${t}</div>` + l.map((p) => opt(p.name, `<span>${esc(p.name)}</span>${k && fullOf(p.key) && !norm(p.name).includes(k) ? `<small>${esc(fullOf(p.key))}</small>` : ""}`, !CBX.typed && norm(p.name) === cur ? ' aria-current="true"' : "")).join("")).join("");
+  const free = k && !groups.some(([, l]) => l.some((p) => norm(p.name) === k)) && !/^[—–-]+$/.test(q) ? opt(q, `Оставить «${esc(q)}»`, ' class="cbx-free"') : "";
+  const el = cbxEl();
   el.innerHTML = (k ? ppl + base + free : base + ppl) || '<span class="muted">Никого</span>';
   CBX.hi = k ? 0 : -1;
   inp.setAttribute("aria-expanded", "true"); cbxHi(); cbxPlace();
@@ -1417,8 +1469,9 @@ function cbxHi() {
 }
 function cbxPlace() {
   const el = $("#cbx"), inp = CBX.inp; if (!el || !inp || !inp.isConnected) return;
-  const r = inp.getBoundingClientRect(), below = innerHeight - r.bottom - 12, above = r.top - 12;
-  el.style.width = Math.min(Math.max(r.width, 220), 320, innerWidth - 16) + "px";
+  const vv = window.visualViewport, top0 = vv ? vv.offsetTop : 0, bot0 = vv ? vv.offsetTop + vv.height : innerHeight;
+  const r = inp.getBoundingClientRect(), below = bot0 - r.bottom - 12, above = r.top - top0 - 12;
+  el.style.width = Math.min(Math.max(r.width, 220), inp.dataset.cbx === "song" ? 360 : 320, innerWidth - 16) + "px";
   el.style.left = Math.max(8, Math.min(r.left, innerWidth - el.offsetWidth - 8)) + "px";
   const up = below < 180 && above > below;
   el.style.maxHeight = Math.min(320, Math.max(120, up ? above : below)) + "px";
@@ -1427,13 +1480,18 @@ function cbxPlace() {
 function cbxClose() { const el = $("#cbx"); if (el) el.remove(); if (CBX.inp) CBX.inp.setAttribute("aria-expanded", "false"); CBX.inp = null; CBX.hi = -1; }
 function cbxPick(v) {
   const inp = CBX.inp; if (!inp) return;
+  if (inp.dataset.cbx) {
+    inp.value = v; inp.dataset.picked = "1"; cbxClose();
+    CBX.quiet = true; inp.dispatchEvent(new Event("input", { bubbles: true })); CBX.quiet = false;
+    inp.dispatchEvent(new Event("change", { bubbles: true })); return;
+  }
   const pre = cbxSeg(inp.value)[0];
   inp.value = v ? pre + v : pre.replace(/\s*\/\s*$/, "");
   cbxClose(); inp.dispatchEvent(new Event("change", { bubbles: true }));
 }
 document.addEventListener("focusin", (e) => { if (e.target.matches && e.target.matches("input.cbx")) { CBX.inp = e.target; CBX.typed = false; e.target.select(); cbxDraw(); } });
 document.addEventListener("focusout", (e) => { if (e.target === CBX.inp) cbxClose(); });
-document.addEventListener("input", (e) => { if (e.target.matches && e.target.matches("input.cbx")) { CBX.inp = e.target; CBX.typed = true; cbxDraw(); } });
+document.addEventListener("input", (e) => { if (!CBX.quiet && e.target.matches && e.target.matches("input.cbx")) { CBX.inp = e.target; CBX.typed = true; cbxDraw(); } });
 document.addEventListener("keydown", (e) => {
   if (!e.target.matches || !e.target.matches("input.cbx")) return;
   const bs = [...document.querySelectorAll("#cbx [data-v]")];
@@ -1447,6 +1505,7 @@ document.addEventListener("keydown", (e) => {
   } else if (e.key === "Escape" && $("#cbx")) { e.preventDefault(); cbxClose(); }
 }, true);
 addEventListener("scroll", cbxPlace, true); addEventListener("resize", cbxPlace);
+if (window.visualViewport) ["resize", "scroll"].forEach((t) => visualViewport.addEventListener(t, () => { cbxPlace(); placePop(); }));
 
 function songsCompact(e) {
   let out = "";
@@ -1476,7 +1535,7 @@ function songsFull(e) {
     const lost = !b.name && !(bi > 0 && filled(e.blocks[bi - 1]) && its.length);
     if (bi > 0 || b.name || b.h) {
       rows += adm
-        ? `<tr class="sec hd" data-row="h" data-b="${b.id}"><td colspan="${span}"><span class="sech">${grip(e, "h", `data-bid="${b.id}"`, `Заголовок «${b.name || "без названия"}»: перетащить`)}<input class="hin" list="dl-sec" value="${esc(b.name)}" placeholder="${b.name ? "" : "Заголовок или пусто"}" data-act="secname" ${A(e)} data-bid="${b.id}" aria-label="Заголовок">${lost ? '<small class="hnote">пустая строка сохранится только между песнями</small>' : ""}<button class="mx" type="button" data-act="secdel" ${A(e)} data-bid="${b.id}" title="Убрать заголовок — песни останутся на месте" aria-label="Убрать заголовок">×</button></span></td></tr>`
+        ? `<tr class="sec hd" data-row="h" data-b="${b.id}"><td colspan="${span}"><span class="sech">${grip(e, "h", `data-bid="${b.id}"`, `Заголовок «${b.name || "без названия"}»: перетащить`)}<input class="hin cbx" data-cbx="list" data-opts="sec" role="combobox" aria-autocomplete="list" aria-expanded="false" autocomplete="off" spellcheck="false" value="${esc(b.name)}" placeholder="${b.name ? "" : "Заголовок или пусто"}" data-act="secname" ${A(e)} data-bid="${b.id}" aria-label="Заголовок">${lost ? '<small class="hnote">пустая строка сохранится только между песнями</small>' : ""}<button class="mx" type="button" data-act="secdel" ${A(e)} data-bid="${b.id}" title="Убрать заголовок — песни останутся на месте" aria-label="Убрать заголовок">×</button></span></td></tr>`
         : b.name ? `<tr class="sec"><td colspan="${span}">${esc(b.name)}</td></tr>` : `<tr class="sec gap"><td colspan="${span}"></td></tr>`;
     }
     its.forEach((i) => {
@@ -1490,7 +1549,7 @@ function songsFull(e) {
       const fl = new Set(i.flags), si = live(e).indexOf(i);
       const open = S.noteOpen[e.id + ":" + idx] || i.note;
       const name = adm
-        ? `${esc(i.name)} <button class="mx" type="button" title="Пометка к песне" data-act="noteopen" ${A(e)} data-i="${idx}">${I.pen}</button>${open ? `<br><input class="ni" value="${esc(i.note || "")}" placeholder="вступаем вместе, громко…" data-act="snote" ${A(e)} data-i="${idx}">` : ""}`
+        ? `<button class="swapb" type="button" data-act="swap" ${A(e)} data-i="${idx}" title="Заменить на другую песню">${esc(i.name)}</button> <button class="mx" type="button" title="Пометка к песне" data-act="noteopen" ${A(e)} data-i="${idx}">${I.pen}</button>${open ? `<br><input class="ni" value="${esc(i.note || "")}" placeholder="вступаем вместе, громко…" data-act="snote" ${A(e)} data-i="${idx}">` : ""}`
         : `<a href="${esc(setUrl(e, si < 0 ? 0 : si + 1))}" target="_blank" rel="noopener" title="${libId(i.name) ? "Открыть чарт в ChartSet" : "Чарта пока нет — откроется название"}">${esc(i.name)}</a>${fl.has("new") ? ' <span class="pill ok">новая</span>' : ""}${i.note ? `<span class="snote">${esc(i.note)}</span>` : ""}`;
       const key = !showKey ? "" : adm
         ? `<td><select data-act="key" ${A(e)} data-i="${idx}" aria-label="Тон"><option value="">тон</option>${[...new Set([kn(i.key), ...KEYS, ...KEYS.map((k) => k + "m")])].filter(Boolean).map((k) => `<option${k === kn(i.key) ? " selected" : ""}>${k}</option>`).join("")}</select></td>`
@@ -1498,7 +1557,7 @@ function songsFull(e) {
       const c = cols.map(([k]) => {
         if (k === "bpm") return adm ? `<td><input class="bpi" value="${esc(i.bpm)}" placeholder="темп" inputmode="numeric" data-act="bpm" ${A(e)} data-i="${idx}"></td>`
           : `<td class="bp${fl.has("bpm?") ? " q" : ""}">${esc(i.bpm)}${fl.has("bpm?") ? "?" : ""}${i.meter ? ` <span class="mt">${esc(i.meter)}</span>` : ""}</td>`;
-        if (k === "start") return adm ? `<td><input class="sti" list="dl-start" value="${esc(i.start)}" placeholder="начинает" data-act="start" ${A(e)} data-i="${idx}"></td>` : `<td>${startTxt(i.start)}</td>`;
+        if (k === "start") return adm ? `<td><input class="sti cbx" data-cbx="list" data-opts="start" role="combobox" aria-autocomplete="list" aria-expanded="false" autocomplete="off" spellcheck="false" aria-label="Кто начинает" value="${esc(i.start)}" placeholder="начинает" data-act="start" ${A(e)} data-i="${idx}"></td>` : `<td>${startTxt(i.start)}</td>`;
         if (k === "pray" || k === "sing") return adm ? `<td>${whoSel(e, idx, k, i[k])}</td>`
           : `<td class="${fl.has(k) || fl.has(k + "?") ? "q" : isMe(i[k], k) ? "me" : ""}">${i[k] ? (k === "pray" ? "🙏 " : "🎤 ") + esc(showN(i[k], k)) : ""}</td>`;
         const v = (i.extra || {})[k.slice(2)] || "";
@@ -1512,7 +1571,7 @@ function songsFull(e) {
     adm ? `<button class="linkb" type="button" data-act="imptext" ${A(e)}>Вставить текстом</button>` : "",
     !adm && live(e).length ? `<a class="linkb" href="${esc(setUrl(e))}" target="_blank" rel="noopener">Сет в ChartSet ${I.out}</a>` : ""].filter(Boolean);
   const link = tl.length ? `<div class="sethd">${tl.join("")}</div>` : "";
-  const add = adm ? `<div class="addrow"><input list="dl-songs" placeholder="Добавить песню из базы…" data-act="addsong" ${A(e)}><button class="tool" type="button" data-act="addbtn" ${A(e)}>Добавить</button></div>
+  const add = adm ? `<div class="addrow"><input class="cbx" data-cbx="song" role="combobox" aria-autocomplete="list" aria-expanded="false" autocomplete="off" spellcheck="false" aria-label="Добавить песню" placeholder="Добавить песню — начни вводить" data-act="addsong" ${A(e)}><button class="tool" type="button" data-act="addbtn" ${A(e)}>Добавить</button></div>
     <div class="addrow"><button class="tool dragh" type="button" data-act="addblock" ${A(e)} data-grip="new" title="Нажми — заголовок в конец; или потяни и отпусти на нужное место">${GRIP} + Заголовок</button><button class="tool" type="button" data-act="addtext" ${A(e)}>+ Пометка в список</button></div>` : "";
   return link + (rows ? `<table class="gs">${rows}</table>` : "") + add;
 }
@@ -1598,7 +1657,7 @@ function grid() {
       : esc(e.extraVocals.map(showN).join(", ")), e.extraVocals.some(meIn) ? "me" : "")).join("")}</tr>` : "");
   const edit = (e) => S.admin && isOpen(e);
   const tRow = CFG.fields.time && (S.admin || evs.some((e) => e.meet || e.time || e.place)) ? `<tr><th class="rl">Время, место</th>${hc}${evs.map((e) => td(e, edit(e)
-    ? `<div class="tinp">${S.live ? "" : `Сбор<input type="time" value="${esc(e.meet)}" data-act="f:meet" ${A(e)}>`}Начало<input type="time" value="${esc(e.time)}" data-act="f:time" ${A(e)}>Место<input list="dl-places" value="${esc(e.place)}" placeholder="как обычно" data-act="f:place" ${A(e)}></div>`
+    ? `<div class="tinp">${S.live ? "" : `Сбор<input type="time" value="${esc(e.meet)}" data-act="f:meet" ${A(e)}>`}Начало<input type="time" value="${esc(e.time)}" data-act="f:time" ${A(e)}>Место<input class="cbx" data-cbx="list" data-opts="places" role="combobox" aria-autocomplete="list" aria-expanded="false" autocomplete="off" spellcheck="false" value="${esc(e.place)}" placeholder="как обычно" data-act="f:place" ${A(e)}></div>`
     : esc([e.meet ? "сбор " + e.meet : "", e.time ? "начало " + e.time : "", e.place].filter(Boolean).join(", ")), "txtc")).join("")}</tr>` : "";
   const dRow = CFG.fields.dress ? `<tr><th class="rl">Дресс-код</th>${hc}${evs.map((e) => td(e, edit(e) ? `<textarea data-act="f:dress" ${A(e)} rows="2">${esc(e.dress)}</textarea>` : `${swatches(e.dress)}${esc(e.dress)}`, "txtc")).join("")}</tr>` : "";
   const nRow = CFG.fields.notes && (S.admin || evs.some((e) => e.note)) ? `<tr><th class="rl">Пометки</th>${hc}${evs.map((e) => td(e, edit(e) ? `<textarea data-act="f:note" ${A(e)} placeholder="Хор на первом, чек в 18:30, ссылки…">${esc(e.note)}</textarea>` : linkify(e.note), "txtc")).join("")}</tr>` : "";
@@ -1717,6 +1776,11 @@ function act(el, type) {
   if (a === "impall" && click) return importSheet(null);
   if (!ev) return;
   const it = ev.items[i];
+  if (change) {
+    const was = { bpm: () => it.bpm, start: () => it.start, tnote: () => it.name, snote: () => it.note, sx: () => (it.extra || {})[el.dataset.x],
+      secname: () => (ev.blocks.find((x) => x.id === +el.dataset.bid) || {}).name, fx: () => (ev.extra || {})[el.dataset.x] }[a] || (a.startsWith("f:") ? () => ev[a.slice(2)] : null);
+    if (was && String(was() || "").trim() === el.value.trim()) return render();
+  }
   if (a === "cptext" && click) {
     copyText(listText(ev, true)).then((ok) => (ok ? toast(`Список на ${dShort(ev.date)} скопирован`) : copySheet([ev])));
     return;
@@ -1734,11 +1798,22 @@ function act(el, type) {
   else if ((a === "up" || a === "down") && click) { if (!move(ev, i, a === "up" ? -1 : 1)) return; }
   else if (a === "del" && click) { ev.items.splice(i, 1); renumber(ev); log(ev, it.kind === "song" ? `− ${it.name}` : `убрана пометка «${it.name}»`); }
   else if ((a === "addbtn" && click) || (a === "addsong" && change)) {
-    const inp = a === "addsong" ? el : el.parentNode.querySelector("input"), name = inp.value.trim(), b = byKey[norm(name)];
-    if (!name || (a === "addsong" && !b)) return;
-    const s = fillSong({ kind: "song", n: 0, name: b ? b.name : SONGS[norm(name)] || name, key: "", bpm: "", meter: "", start: "", pray: "", sing: "", flags: [], extra: {}, group: ev.blocks[ev.blocks.length - 1].id }, ev.date); delete s.auto;
+    const inp = a === "addsong" ? el : el.parentNode.querySelector("input"), name = inp.value.trim(), picked = inp.dataset.picked === "1", known = SONGS[norm(name)];
+    delete inp.dataset.picked;
+    if (!name || (a === "addsong" && !picked && !known)) return;
+    inp.value = "";
+    const b = byKey[norm(name)];
+    const s = fillSong({ kind: "song", n: 0, name: known || name, key: "", bpm: "", meter: "", start: "", pray: "", sing: "", flags: [], extra: {}, group: ev.blocks[ev.blocks.length - 1].id }, ev.date); delete s.auto;
     ev.items.push(s); renumber(ev); log(ev, `+ ${s.name}${s.key ? ` (${s.key})` : ""}`);
     if (!b && !s.key) toast("Песни нет ни в базе, ни в прошлых списках — добавлена без тона и темпа");
+    if (matchMedia("(pointer: fine)").matches) S.focusAdd = ev.id;
+  } else if (a === "swap" && click) {
+    return listPick(el, it.name, songCands, (v) => songOpt(v, ev.date), (v) => {
+      const nm = SONGS[norm(v)] || v; if (!nm || norm(nm) === norm(it.name)) return;
+      const before = snap(), old = it.name;
+      Object.assign(it, { name: nm, key: "", bpm: "", meter: "", start: "", note: "", flags: [] }); fillSong(it, ev.date); delete it.auto;
+      log(ev, `${it.n}. ${old} → ${nm}${it.key ? ` (${kn(it.key)})` : ""}`); track(before); render();
+    }, "Заменить на… начни вводить");
   } else if (a === "addblock" && click) {
     if (Date.now() < (S.noClickTill || 0)) return;
     const seq = flatOf(ev), id = Math.max(...ev.blocks.map((b) => b.id)) + 1; seq.push({ h: { id, name: "", h: true } }); fromFlat(ev, seq);
@@ -2218,19 +2293,31 @@ function popover(anchor, html, setup) {
   closePop();
   const el = document.createElement("div"); el.className = "pop"; el.id = "pop"; el.innerHTML = html; document.body.append(el);
   setup(el);
-  const r = anchor.getBoundingClientRect(), w = el.offsetWidth, h = el.offsetHeight;
-  el.style.left = Math.max(8, Math.min(r.left, innerWidth - w - 8)) + "px";
-  el.style.top = Math.max(8, Math.min(r.bottom + h + 8 > innerHeight ? r.top - h - 4 : r.bottom + 4, innerHeight - h - 8)) + "px";
+  POPA = anchor; placePop();
   setTimeout(() => document.addEventListener("pointerdown", popOut, true));
 }
-function songCands(q) {
+let POPA = null;
+function placePop() {
+  const el = $("#pop"); if (!el || !POPA || !POPA.isConnected) return;
+  const vv = window.visualViewport, top0 = vv ? vv.offsetTop : 0, bot0 = vv ? vv.offsetTop + vv.height : innerHeight;
+  const r = POPA.getBoundingClientRect(), w = el.offsetWidth, h = el.offsetHeight;
+  el.style.left = Math.max(8, Math.min(r.left, innerWidth - w - 8)) + "px";
+  el.style.top = Math.max(top0 + 8, Math.min(r.bottom + h + 8 > bot0 ? r.top - h - 4 : r.bottom + 4, bot0 - h - 8)) + "px";
+}
+let SNC = null;
+function songNames() {
+  if (SNC && SNC.src === SONGS) return SNC.all;
   const lib = new Set([...BASE.map((b) => b.name), ...Object.values(LIB_NAMES)]);
   const clean = (n) => lib.has(n) || (/\p{L}{2}/u.test(n) && !/\s\d{2,3}(\s|$)/.test(n) && !/\s[A-H][#b]?m?(\s|$)/.test(n) && !/[^\p{L}\p{N}\s(),.'’!?«»+-]/u.test(n));
-  const k = norm(q), all = [...new Set(Object.values(SONGS))].filter(clean).sort((a, b) => a.localeCompare(b, "ru"));
-  if (!k) return all;
-  return all.map((n) => { const sk = norm(n); return [n, sk === k ? 0 : sk.startsWith(k) ? 1 : sk.includes(k) ? 2 : 3 + lev(k, sk.slice(0, Math.max(k.length, 3)))]; })
-    .filter((x) => x[1] < 3 + Math.max(2, Math.floor(k.length / 3))).sort((a, b) => a[1] - b[1] || a[0].localeCompare(b[0], "ru")).map((x) => x[0]);
+  const all = [...new Set(Object.values(SONGS))].filter(clean).sort((a, b) => a.localeCompare(b, "ru")), cnt = {}, from = isoAdd(TODAY, -365);
+  D.events.forEach((e) => { if (!e.deleted && e.date >= from && e.date <= TODAY) live(e).forEach((x) => { const n = SONGS[norm(x.name)]; if (n) cnt[n] = (cnt[n] || 0) + 1; }); });
+  SNC = { src: SONGS, all, often: all.filter((n) => cnt[n] >= 2).sort((a, b) => cnt[b] - cnt[a]) };
+  return all;
 }
+const oftenSongs = (n) => (songNames(), SNC.often.slice(0, n));
+const songCands = (q) => search(q, songNames(), (n) => [n]);
+const songMeta = (n, iso) => { const i = songInfo(n, "", iso); return [i.key ? kn(i.key) : "", i.bpm, libId(n) ? "чарт" : ""].filter(Boolean).join(" · "); };
+const songOpt = (v, iso) => `<b>${esc(v)}</b><small>${esc(songMeta(v, iso)) || "нет в базе и в графике"}</small>`;
 function listPick(anchor, cur, cands, render1, done, ph) {
   popover(anchor, `<input class="pop-q" value="" placeholder="${esc(ph)}" spellcheck="false" autocomplete="off"><div class="pop-l"></div>`, (el) => {
     const q = el.querySelector(".pop-q"), l = el.querySelector(".pop-l");
@@ -2243,9 +2330,10 @@ function listPick(anchor, cur, cands, render1, done, ph) {
     q.onkeydown = (e) => {
       if (e.key === "Escape") return closePop();
       if (e.key !== "Enter") return;
-      e.preventDefault(); const v = q.value.trim(), f = l.querySelector("button");
+      e.preventDefault(); const v = q.value.trim(), f = l.querySelector("button[data-v]");
       if (!v) return closePop();
-      done(f && norm(f.dataset.v).includes(norm(v)) ? f.dataset.v : v); closePop();
+      const fk = f ? norm(f.dataset.v) : "", lk = norm(fromLat(v));
+      done(f && (fk.includes(norm(v)) || (lk && fk.includes(lk))) ? f.dataset.v : v); closePop();
     };
     l.onclick = (e) => { const b = e.target.closest("button"); if (b) { done(b.dataset.v); closePop(); } };
   });
@@ -2285,7 +2373,7 @@ function impPick(el) {
     const extra = f === "sing" ? ["Все"] : [];
     return listPick(el, s[f], (q) => {
       const k = norm(q), can = PEOPLE.filter((x) => x.p.abil.has(f)), rest = PEOPLE.filter((x) => !x.p.abil.has(f));
-      const all = [...new Set([...extra, ...can.map((x) => x.n), ...rest.map((x) => x.n)])], m = all.filter((n) => !k || norm(n).includes(k));
+      const all = [...new Set([...extra, ...can.map((x) => x.n), ...rest.map((x) => x.n)])], m = search(q, all, (n) => [n]);
       return (k && !m.length ? all.map((n) => [n, lev(k, norm(n).slice(0, k.length + 1))]).sort((a, b) => a[1] - b[1]).slice(0, 4).map((x) => x[0]) : m).concat(!k && s[f] ? [""] : []);
     }, (v) => (v ? `<b>${esc(v)}</b>${personOf(v, f) ? `<small>${f === "pray" ? "молитва" : "ведёт"} — ${personOf(v, f).counts[f] || 0} ${plural(personOf(v, f).counts[f] || 0, "раз", "раза", "раз")} по графику</small>` : ""}` : `<span class="muted">— никто</span>`),
       (v) => apply(() => { s[f] = v; s.flags = s.flags.filter((x) => x !== f + "?" && x !== f); }), s[f] ? `Сейчас ${s[f]} — найти…` : f === "pray" ? "Кто молится — найти…" : "Кто ведёт — найти…");
@@ -2352,7 +2440,8 @@ function team() {
   if (booting()) return skeleton();
   if (D.empty) return loadingView() + about();
   const ab = abilities(), q = norm(S.rq), byName = (a, b) => a.name.localeCompare(b.name, "ru");
-  const fit = (p) => (!q || norm(p.name + " " + p.alias.join(" ") + " " + fullOf(p.key)).includes(q)) && (S.rf === "all" || p.abil.has(S.rf));
+  const hits = rankMap(S.rq, Object.values(R), (p) => [p.name, ...p.alias, fullOf(p.key)]);
+  const fit = (p) => (!hits || hits.has(p)) && (S.rf === "all" || p.abil.has(S.rf));
   const all = Object.values(R), on = all.filter((p) => p.active && fit(p)).sort(byName), off = all.filter((p) => !p.active && fit(p)).sort(byName);
   const chips = `<div class="fchips rf"><button type="button" data-act="rf" data-f="all" aria-pressed="${S.rf === "all"}">Все</button>${ab.map((x) => `<button type="button" data-act="rf" data-f="${x.id}" aria-pressed="${S.rf === x.id}" title="${esc(x.name)}">${abIco(x, 16)}${esc(x.name)}</button>`).join("")}</div>`;
   const bar = `<div class="rbar"><input type="search" placeholder="Имя" value="${esc(S.rq)}" data-act="rq" aria-label="Поиск человека"><button class="tool" type="button" data-act="stats">${I.stats} Статистика</button>${S.admin ? `<input class="padd" placeholder="+ Человек" data-act="padd" aria-label="Добавить человека">` : ""}</div>${chips}`;
@@ -2449,7 +2538,7 @@ function personSheet(key) {
   const chipsH = () => Object.keys(RO.merge).filter((k) => k !== key && resolve(k) === key).map((k) => chip(k, mName(k), "", (R[key].byKey[k] || new Set()).size, `data-un="${esc(k)}"`)).join("") +
     Object.entries(RO.scoped || {}).flatMap(([nk, xs]) => xs.filter((x) => x.to === key).map((x) => chip(nk, mName(nk), "только " + x.roles.map((r) => abilName(r).toLowerCase()).join(", "), (R[key].byKey[nk] || new Set()).size, `data-uns="${esc(nk)}"`))).join("") +
     `<button type="button" class="mchip add" id="pn-add">+ Добавить</button>`;
-  openSheet(p.name, `<div id="pn-stats">${statsH(p)}</div><div class="cfg-h">Имя в графике</div><div class="addrow" style="margin-top:0"><input id="pn-name" class="inp" list="pn-sp" value="${esc((RO.names || {})[key] || p.name)}"><datalist id="pn-sp">${[p.name, ...p.alias].map((n) => `<option value="${esc(n)}">`).join("")}</datalist></div>
+  openSheet(p.name, `<div id="pn-stats">${statsH(p)}</div><div class="cfg-h">Имя в графике</div><div class="addrow" style="margin-top:0"><input id="pn-name" class="inp cbx" data-cbx="list" data-opts="spell" data-p="${esc(key)}" role="combobox" aria-autocomplete="list" aria-expanded="false" autocomplete="off" spellcheck="false" aria-label="Имя в графике" value="${esc((RO.names || {})[key] || p.name)}"></div>
     <div class="cfg-h">Полное имя</div><div class="addrow" style="margin-top:0"><input class="inp" data-x="${esc(fullCol())}" placeholder="Имя Фамилия" value="${esc(fullOf(key))}" aria-label="Полное имя"></div>
     <div class="cfg-h">Telegram</div><div class="addrow" style="margin-top:0"><input id="pn-tg" class="inp" placeholder="@ник" value="${tgOf(key) ? "@" + esc(tgOf(key)) : ""}" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Ник в Telegram"><span id="pn-tgl">${tgLink(key)}</span></div>
     ${xcolsOf(rosterCols()).filter((c) => !isTg(c) && !isFull(c) && !c.startsWith("#")).map((c) => `<div class="cfg-h">${esc(c)}</div><div class="addrow" style="margin-top:0"><input class="inp" data-x="${esc(c)}" value="${esc(xOf(key, c))}" aria-label="${esc(c)}"></div>`).join("")}
@@ -2498,8 +2587,8 @@ function personSheet(key) {
     const base = resolve(nk); if (RO.abil[base]) RO.abil[base] = [...new Set([...RO.abil[base], ...gone])];
     saveRO();
   });
-  const cands = (q) => { const s = norm(q); return Object.values(R).filter((x) => x.key !== key && (!s || norm(x.name + " " + x.alias.join(" ") + " " + fullOf(x.key)).includes(s)))
-    .sort((a, b) => similar(b) - similar(a) || b.active - a.active || a.name.localeCompare(b.name, "ru")).map((x) => x.key); };
+  const cands = (q) => search(q, Object.values(R).filter((x) => x.key !== key).sort((a, b) => similar(b) - similar(a) || b.active - a.active || a.name.localeCompare(b.name, "ru")),
+    (x) => [x.name, ...x.alias, fullOf(x.key)]).map((x) => x.key);
   const one = (k) => { const x = R[k]; return `<b>${esc(x.name)}${similar(x) ? ' <i class="tag">похоже</i>' : ""}</b><small>${fullOf(k) ? esc(fullOf(k)) + " · " : ""}${nServ(x.total)}${x.past ? `, последнее ${lastTxt(x.past)}` : x.next ? `, следующее ${lastTxt(x.next)}` : ""}${x.active ? "" : " · архив"}</small>`; };
   const done = (nm) => { if (nm) { refresh(); toast(`${nm} — это ${R[key].name}`); } };
   const rolesStep = (anchor, k) => {
@@ -2766,9 +2855,9 @@ function evSheet(ev) {
   openSheet(isNew ? "Новое служение" : `Служение ${dLong(ev.date)}`, `<div class="evf">
     <label class="fld"><span>Дата</span><input type="date" id="ef-date" value="${b.date}"></label>
     ${isNew && free.length ? `<div class="qd">${free.slice(0, 5).map((d) => `<button type="button" class="qdb" data-d="${d}" aria-pressed="${d === b.date}">вс ${dShort(d)}</button>`).join("")}<span class="muted">свободные воскресенья</span></div>` : ""}
-    <label class="fld"><span>Название</span><input id="ef-title" list="dl-titles" value="${esc(b.title)}" placeholder="у воскресного можно пусто"></label>
+    <label class="fld"><span>Название</span><input id="ef-title" class="cbx" data-cbx="list" data-opts="titles" role="combobox" aria-autocomplete="list" aria-expanded="false" autocomplete="off" spellcheck="false" value="${esc(b.title)}" placeholder="у воскресного можно пусто"></label>
     <div class="fld2"><label class="fld"><span>Начало</span><input type="time" id="ef-time" value="${esc(b.time)}"></label>
-      <label class="fld"><span>Место</span><input id="ef-place" list="dl-places" value="${esc(b.place)}" placeholder="как обычно"></label></div>
+      <label class="fld"><span>Место</span><input id="ef-place" class="cbx" data-cbx="list" data-opts="places" role="combobox" aria-autocomplete="list" aria-expanded="false" autocomplete="off" spellcheck="false" value="${esc(b.place)}" placeholder="как обычно"></label></div>
     <label class="fld"><span>Сессия</span><select id="ef-sess"><option value="">одна</option>${[1, 2, 3].map((n) => `<option value="${n}"${b.session === n ? " selected" : ""}>${n}-я сессия</option>`).join("")}</select></label>
     ${isNew && from.length ? `<label class="fld"><span>Состав и вокал</span><select id="ef-copy"><option value="">пусто</option>${from.map((e) => `<option value="${e.id}">как ${esc(headText(e))}</option>`).join("")}</select></label>` : ""}
     <label class="chk"><input type="checkbox" id="ef-off" ${b.status ? "checked" : ""}> Не служим</label>
@@ -2834,13 +2923,11 @@ function render() {
   const y = scrollY, gw0 = $(".gwrap"), x = gw0 ? gw0.scrollLeft : 0;
   document.querySelectorAll("#tabs button").forEach((b) => b.setAttribute("aria-pressed", b.dataset.v === S.view));
   $("#lbar").hidden = !(S.loading || S.saving);
-  $("#main").innerHTML = (S.view === "team" ? team() : grid()) +
-    `<datalist id="dl-songs">${BASE.map((b) => `<option value="${esc(b.name)}">${esc(b.key)} · ${esc(b.bpm)}</option>`).join("")}</datalist>` +
-    `<datalist id="dl-sec">${SEC_PRESETS.map((s) => `<option value="${s}">`).join("")}</datalist><datalist id="dl-people">${PEOPLE.map((p) => `<option value="${esc(p.n)}">`).join("")}</datalist>` +
-    `<datalist id="dl-start">${STARTS.map((s) => `<option value="${s}">`).join("")}</datalist><datalist id="dl-titles">${TITLES.map((s) => `<option value="${s}">`).join("")}</datalist><datalist id="dl-places">${PLACES.map((x) => `<option value="${x}">`).join("")}</datalist>`;
+  $("#main").innerHTML = S.view === "team" ? team() : grid();
   scrollTo(0, y);
   if (S.focusSec) { const [ev, id] = S.focusSec.split(":"), el = $(`[data-act="secname"][data-ev="${ev}"][data-bid="${id}"]`); S.focusSec = null; if (el) el.focus({ preventScroll: true }); }
   if (S.focusGrip) { const el = $(S.focusGrip); S.focusGrip = null; if (el) el.focus({ preventScroll: true }); }
+  if (S.focusAdd != null) { const el = $(`input[data-act="addsong"][data-ev="${S.focusAdd}"]`); S.focusAdd = null; if (el) el.focus({ preventScroll: true }); }
   const gw = $(".gwrap");
   if (gw) {
     if (!(S.toNext && toNext(gw))) gw.scrollLeft = S.resetX || S.toNext ? 0 : x;
@@ -2897,7 +2984,7 @@ document.addEventListener("keydown", (e) => {
   track(before); render();
 });
 main.addEventListener("click", (e) => { const el = e.target.closest("[data-act]"); if (el && (el.tagName === "BUTTON" || el.dataset.click)) route(el, "click"); });
-main.addEventListener("change", (e) => { const el = e.target.closest("[data-act]"); if (el) route(el, "change"); });
+main.addEventListener("change", (e) => { const el = e.target.closest("[data-act]"); if (el && el.isConnected) route(el, "change"); });
 main.addEventListener("input", (e) => { const el = e.target.closest("[data-act]"); if (el && el.dataset.act === "rq") route(el, "input"); });
 $("#tabs").onclick = (e) => { const b = e.target.closest("button"); if (!b) return; S.view = b.dataset.v; store.set("view", S.view); S.toNext = S.view === "grid" && S.month === curMonth(); scrollTo(0, 0); render(); };
 S.loading = HTTP && !!SHEET_ID;
