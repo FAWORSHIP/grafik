@@ -586,6 +586,10 @@ button.pill { border: 0; cursor: pointer; }
 [data-skin="b"] .rt thead th, [data-skin="b"] .rt th.pn, [data-skin="b"] .rt td.pn { background: var(--bg); }
 [data-skin="b"] .rt thead th { letter-spacing: 0; font-size: 12px; }
 
+.upd { position: fixed; z-index: 61; top: calc(8px + env(safe-area-inset-top, 0px)); left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 10px; padding: 6px 6px 6px 14px; border-radius: 12px; background: var(--ink); color: var(--bg); font-size: 14px; font-weight: 700; white-space: nowrap; box-shadow: 0 10px 30px rgb(0 0 0 / 0.25); }
+.upd .btn { padding: 6px 12px; font-size: 14px; }
+.upd-x { width: 30px; height: 30px; border: 0; border-radius: 8px; background: none; color: var(--bg); font-size: 20px; line-height: 1; padding: 0; opacity: 0.7; }
+
 
 
 html, button, a, input, select, textarea, label, summary { touch-action: manipulation; }
@@ -1255,6 +1259,7 @@ const DEF_CFG = {
 let CFG = store.get("cfg", null) || JSON.parse(JSON.stringify(DEF_CFG));
 const saveCfg = () => store.set("cfg", CFG);
 
+const VERSION = "0.5.0";
 const Q = new URLSearchParams(location.search);
 const S = { live: false, view: Q.get("view") || store.get("view", "grid"), rf: "all", rq: "", showOff: false, me: Q.get("me") ?? store.get("me", ""), admin: Q.get("admin") === "1", month: Q.get("m") || "", hidePast: false, open: new Set(), allOpen: Q.get("open") === "all", changes: [], noteOpen: {} };
 const SKIN0 = "b";
@@ -1722,7 +1727,7 @@ function about() {
     ? `Данные — из <a href="${esc(D.sheet)}" target="_blank" rel="noopener">таблицы</a>${isMain() ? "" : " (не основной — тестовой)"}, загружены в ${at}: ${D.tabs.length} листов, ${D.events.filter((e) => !e.deleted).length} служений. <button class="linkb${S.loading ? " busy" : ""}" type="button" data-act="reload"${S.loading ? " disabled" : ""}>${I.sync} ${S.loading ? "Обновляю…" : "Обновить"}</button>`
     : D.empty ? "" : `Снимок <a href="${esc(D.sheet)}" target="_blank" rel="noopener">таблицы</a> на ${dLong(D.built)}${S.loading ? " — загружаю свежие данные…" : S.loadErr ? ` — свежие не загрузились: ${esc(S.loadErr)}` : !HTTP ? " — свежие данные и вход открываются по http://localhost" : ""}. ${D.tabs.length} листов, из них ${hid} скрытых.`;
   const who = authed() || AUTH.email ? `<span>Вход через Google: ${esc(AUTH.email || "выполнен")} · <button class="linkb" type="button" data-act="signout">Выйти</button></span>` : S.live && !canSign() ? "<span>Вход через Google ещё не настроен — правки остаются на странице, в таблицу не пишутся.</span>" : "";
-  return `<div class="about">${src ? `<span>${src}</span>` : ""}${who}<span>Название песни открывает её чарт в ChartSet, «Сет в ChartSet» — весь сет.</span></div>`;
+  return `<div class="about">${src ? `<span>${src}</span>` : ""}${who}<span>Название песни открывает её чарт в ChartSet, «Сет в ChartSet» — весь сет.</span><span>Версия ${VERSION}</span></div>`;
 }
 
 function log(ev, text) { S.changes.push({ date: ev.date, sess: ev.session, text }); }
@@ -2836,6 +2841,23 @@ async function loadLive(quiet) {
   } catch (e) { S.loadErr = e.message || String(e); if (S.live && !quiet) toast("Не обновилось: " + S.loadErr); }
   finally { S.loading = false; render(); }
 }
+let updAt = Date.now();
+async function checkUpdate() {
+  if (!HTTP || MOCK || Date.now() - updAt < 5 * 60e3 || $("#upd")) return;
+  updAt = Date.now();
+  try {
+    const v = (/const VERSION = "([\d.]+)"/.exec(await (await fetch(location.pathname, { cache: "no-store" })).text()) || [])[1];
+    if (!v || v === VERSION) return;
+    const bar = document.createElement("div"); bar.id = "upd"; bar.className = "upd"; bar.setAttribute("role", "status");
+    bar.innerHTML = `<span>Вышла версия ${esc(v)}</span><button class="btn" type="button">Обновить</button><button class="upd-x" type="button" aria-label="Позже">×</button>`;
+    bar.querySelector(".btn").onclick = () => { if ((pending().n || S.changes.length) && !confirm("Несохранённые правки пропадут. Обновить страницу?")) return; location.reload(); };
+    bar.querySelector(".upd-x").onclick = () => { bar.remove(); updAt = Date.now(); };
+    document.body.append(bar);
+    bar.style.top = Math.max(8, $(".top").getBoundingClientRect().bottom + 8) + "px";
+  } catch {}
+}
+setInterval(checkUpdate, 10 * 60e3);
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") checkUpdate(); });
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "visible" && S.live && Date.now() - (S.loadedAt || 0) > 60e3 && !$("#layer").innerHTML && !typing(document.activeElement)) loadLive(true);
 });
