@@ -1319,7 +1319,7 @@ const DEF_CFG = {
 let CFG = store.get("cfg", null) || JSON.parse(JSON.stringify(DEF_CFG));
 const saveCfg = () => store.set("cfg", CFG);
 
-const VERSION = "0.9.1";
+const VERSION = "0.9.2";
 const FINE = matchMedia("(pointer: fine)").matches;
 const Q = new URLSearchParams(location.search);
 const S = { live: false, view: Q.get("view") || store.get("view", "grid"), rf: "all", rq: "", showOff: false, me: Q.get("me") ?? store.get("me", ""), admin: Q.get("admin") === "1", month: Q.get("m") || "", hidePast: false, open: new Set(), allOpen: Q.get("open") === "all", changes: [], noteOpen: {} };
@@ -1528,6 +1528,7 @@ const CBX_LISTS = {
   sec: () => SEC_PRESETS.map((x) => [x, esc(x)]), start: () => STARTS.map((x) => [x, startTxt(x)]), titles: () => TITLES.map((x) => [x, esc(x)]), places: () => PLACES.map((x) => [x, esc(x)]),
   spell: (inp) => { const p = R[inp.dataset.p]; return p ? [...new Set([p.name, ...p.alias])].map((n) => [n, esc(n)]) : []; },
 };
+const CBX_EMPTY = { places: "— как обычно", start: "— никто", titles: "— без названия", sec: "— без заголовка" };
 function cbxEl() {
   let el = $("#cbx");
   if (!el) {
@@ -1549,8 +1550,8 @@ function cbxDrawList(inp) {
     if (k && !found.some((n) => norm(n) === k)) html += opt(q, `Добавить «${esc(q)}» — нет в библиотеке`, ' class="cbx-free"');
     hi = k ? 0 : -1;
   } else {
-    const found = search(q, (CBX_LISTS[inp.dataset.opts] || (() => []))(inp), ([v]) => [v]);
-    html = found.map(([v, l]) => opt(v, l)).join("");
+    const found = search(q, (CBX_LISTS[inp.dataset.opts] || (() => []))(inp), ([v]) => [v]), empty = CBX_EMPTY[inp.dataset.opts];
+    html = (empty && !k ? opt("", empty, ' class="cbx-b"') : "") + found.map(([v, l]) => opt(v, l)).join("");
     hi = k && found.length && norm(found[0][0]).startsWith(k) ? 0 : -1;
     if (inp.closest("#pop") && k && !found.some(([v]) => norm(v) === k)) html += opt(q, `Оставить «${esc(q)}»`, ' class="cbx-free"');
     if (!html) { const el = $("#cbx"); if (el) el.remove(); inp.setAttribute("aria-expanded", "false"); return; }
