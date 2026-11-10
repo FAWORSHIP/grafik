@@ -1315,7 +1315,7 @@ const DEF_CFG = {
 let CFG = store.get("cfg", null) || JSON.parse(JSON.stringify(DEF_CFG));
 const saveCfg = () => store.set("cfg", CFG);
 
-const VERSION = "0.8.0";
+const VERSION = "0.8.1";
 const FINE = matchMedia("(pointer: fine)").matches;
 const Q = new URLSearchParams(location.search);
 const S = { live: false, view: Q.get("view") || store.get("view", "grid"), rf: "all", rq: "", showOff: false, me: Q.get("me") ?? store.get("me", ""), admin: Q.get("admin") === "1", month: Q.get("m") || "", hidePast: false, open: new Set(), allOpen: Q.get("open") === "all", changes: [], noteOpen: {} };
@@ -2569,7 +2569,7 @@ function impPick(el) {
 
 const isoAdd = (iso, n) => { const d = new Date(iso + "T12:00:00Z"); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
 function importSheet(ev0) {
-  if (!S.imp || (ev0 && S.imp.def !== ev0.id)) S.imp = { def: ev0 ? ev0.id : (nextEv() || {}).id, text: ev0 && ev0.items.length ? listText(ev0, false) : S.imp && !ev0 ? S.imp.text : "" };
+  S.imp = { def: ev0 ? ev0.id : (nextEv() || {}).id, text: ev0 && ev0.items.length ? listText(ev0, false) : "" };
   const ios = !FINE && matchMedia("(max-width: 600px)").matches;
   openSheet(ios ? "Список текстом" : "Вставить список текстом", `<div class="imp"><div>
       <textarea class="txa" id="im-t" placeholder="${esc(IMP_EX)}" spellcheck="false">${esc(S.imp.text)}</textarea>
