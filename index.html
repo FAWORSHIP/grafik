@@ -420,7 +420,8 @@ body.dnd, body.dnd * { cursor: grabbing !important; user-select: none; -webkit-u
 
 @media (pointer: coarse) {
   .fld input[type="date"], .fld input[type="time"] { -webkit-appearance: none; appearance: none; min-width: 0; min-height: calc(1.4em + 20px); text-align: left; }
-  .fld input::-webkit-date-and-time-value { text-align: left; }
+  .fld input::-webkit-date-and-time-value, .tinp input::-webkit-date-and-time-value { text-align: left; }
+  .tinp input[type="time"] { -webkit-appearance: none; appearance: none; min-width: 0; min-height: 30px; text-align: left; }  
 }
 .qd { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-top: -4px; }
 .qd .muted { font-size: 12.5px; }
@@ -609,36 +610,26 @@ body.kb .dock { display: none; }
   body.kb .sheet-panel { padding-bottom: 12px; }
   .imp .txa { min-height: 0; height: 34vh; }
   body.kb .imp .txa { height: calc(5 * 1.55em + 22px); }
-  body.kb .imp-hd, body.kb #im-s { display: none; }  
+  body.kb .imp-hd { display: none; }  
   
   .dock { left: 0; right: 0; bottom: 0; width: auto; max-width: none; margin: 0; gap: 6px; border-radius: 16px 16px 0 0; padding: 8px max(10px, env(safe-area-inset-right, 0px)) calc(8px + env(safe-area-inset-bottom, 0px)) max(10px, env(safe-area-inset-left, 0px)); box-shadow: 0 -6px 24px rgb(0 0 0 / 0.22); }
   .dk-t { flex: 1 1 auto; }
   .toast { bottom: calc(84px + env(safe-area-inset-bottom, 0px)); }
 }
 
-:root { --pk-l: 0px; --pk-t: 0px; --pk-b: 0px; --pk-r: 0px; --pk-scrim: var(--bg); --pk-blur: none; --pk-panel: var(--bg); --pk-shadow: none; }
-:root[data-pk="card"] { --pk-l: 10px; --pk-t: 10px; --pk-b: 10px; --pk-r: 20px; --pk-scrim: rgb(0 0 0 / 0.3); --pk-blur: blur(12px) saturate(1.2); --pk-shadow: 0 0 0 1px var(--line), 0 20px 60px rgb(0 0 0 / 0.35); }
-:root[data-pk="sheet"] { --pk-t: 56px; --pk-r: 20px 20px 0 0; --pk-scrim: rgb(0 0 0 / 0.4); --pk-blur: blur(4px); --pk-shadow: 0 -8px 30px rgb(0 0 0 / 0.22); }
-:root[data-pk="glass"] { --pk-scrim: color-mix(in srgb, var(--bg) 38%, transparent); --pk-blur: blur(22px) saturate(1.6); --pk-panel: transparent; }
+:root { --pk-m: 10px; --pk-r: 20px; --pk-scrim: rgb(0 0 0 / 0.3); --pk-blur: blur(12px) saturate(1.2); --pk-shadow: 0 0 0 1px var(--line), 0 20px 60px rgb(0 0 0 / 0.35); }
 html.lock { overflow: hidden; }  
 .pop.pk { position: fixed; inset: 0; width: auto; height: auto; padding: 0; border: 0; border-radius: 0; box-shadow: none; background: none; display: block; z-index: 80; }
 .pop.pk::before { content: ""; position: absolute; left: 0; right: 0; top: -50vh; bottom: -50vh; background: var(--pk-scrim); -webkit-backdrop-filter: var(--pk-blur); backdrop-filter: var(--pk-blur); }
-.pk-p { position: absolute; left: var(--pk-l); right: var(--pk-l); top: calc(var(--vvt, 0px) + var(--pk-t)); height: calc(var(--vvh, 100%) - var(--pk-t) - var(--pk-b)); display: flex; flex-direction: column; overflow: hidden; background: var(--pk-panel); border-radius: var(--pk-r); box-shadow: var(--pk-shadow); }
+.pk-p { position: absolute; left: var(--pk-m); right: var(--pk-m); top: calc(var(--vvt, 0px) + var(--pk-m)); height: calc(var(--vvh, 100%) - 2 * var(--pk-m)); display: flex; flex-direction: column; overflow: hidden; background: var(--bg); border-radius: var(--pk-r); box-shadow: var(--pk-shadow); }
 .pk-p > :not(.pk-h):not(.pop-l):not(.cbx-pop) { flex: none; margin: 10px 12px 0; }
 .pk-h { position: relative; flex: none; display: flex; align-items: center; gap: 8px; padding: 12px 12px 10px; border-bottom: 1px solid var(--line); }
-:root[data-pk="sheet"] .pk-h { padding-top: 20px; }
-:root[data-pk="sheet"] .pk-h::before, :root[data-pk="sheet"] .sheet-h::before { content: ""; position: absolute; top: 7px; left: 50%; width: 36px; height: 5px; margin-left: -18px; border-radius: 3px; background: var(--line); }
-:root[data-pk="glass"] .pk-h { border-bottom-color: transparent; }
 .pk-h b { flex: 1; min-width: 0; font-size: 16px; }
-.pk-h small { display: block; margin-top: 1px; font-weight: 400; font-size: 13px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pk-h small, .sheet-h b small { display: block; margin-top: 1px; font-weight: 400; font-size: 13px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pk-x { flex: none; border: 0; border-radius: 9px; background: var(--chip); color: var(--ink); padding: 8px 12px; font-size: 15px; font-weight: 600; }
-.pk-v { flex: none; display: inline-flex; align-items: center; gap: 5px; border: 1px solid var(--line); background: none; color: var(--muted); border-radius: 999px; padding: 5px 9px; font-size: 12.5px; font-weight: 600; white-space: nowrap; }
-.pk-v svg { width: 14px; height: 14px; }
-.sheet-h .pk-v { justify-self: start; }
 .pk-p .pop-q { width: auto; padding: 10px 12px; border-radius: 10px; }
-:root[data-pk="glass"] .pk-p .pop-q { background: color-mix(in srgb, var(--bg2) 70%, transparent); }
 .pk-p .pop-n .pop-q { flex: 1; }
-.pk-p .pop-l, .pk-p .cbx-pop { position: static; flex: 1; min-height: 0; max-height: none; width: auto; margin: 6px 0 0; padding: 0 8px calc(12px + env(safe-area-inset-bottom, 0px)); overflow-y: auto; overscroll-behavior: contain; border: 0; border-radius: 0; box-shadow: none; background: none; }
+.pk-p .pop-l, .pk-p .cbx-pop { position: static; flex: 1; min-height: 0; max-height: none; width: auto; margin: 6px 0 0; padding: 0 8px 12px; overflow-y: auto; overscroll-behavior: contain; border: 0; border-radius: 0; box-shadow: none; background: none; }
 .pk-p .pop-l button, .pk-p .cbx-pop button { padding: 11px 10px; font-size: 16px; }
 .pk-p .pop-l button { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }  
 .pk-p .pop-l button b { font-weight: 400; min-width: 0; }
@@ -651,14 +642,16 @@ html.lock { overflow: hidden; }
 @media (max-width: 600px) and (pointer: coarse) {
   .sheet { inset: 0; height: auto; padding: 0; display: block; background: none; }
   .sheet::before { content: ""; position: absolute; left: 0; right: 0; top: -50vh; bottom: -50vh; background: var(--pk-scrim); -webkit-backdrop-filter: var(--pk-blur); backdrop-filter: var(--pk-blur); }
-  .sheet-panel, .sheet-panel.wide { position: absolute; left: var(--pk-l); right: var(--pk-l); top: calc(var(--vvt, 0px) + var(--pk-t)); width: auto; height: calc(var(--vvh, 100%) - var(--pk-t) - var(--pk-b)); max-height: none; border-radius: var(--pk-r); background: var(--pk-panel); box-shadow: var(--pk-shadow); padding: 0 16px calc(16px + env(safe-area-inset-bottom, 0px)); overscroll-behavior: contain; }
-  .sheet-h { background: var(--pk-panel); }
-  :root[data-pk="sheet"] .sheet-h { padding-top: 22px; }
-  :root[data-pk="glass"] .sheet-h { -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px); }
-  
-  :root[data-pk="sheet"] .sheet-panel:not(.wide) { top: auto; bottom: calc(100% - var(--vvt, 0px) - var(--vvh, 100%)); height: auto; max-height: calc(var(--vvh, 100%) - var(--pk-t)); }
-  :root[data-pk="card"] .sheet-panel:not(.wide) { top: calc(var(--vvt, 0px) + var(--vvh, 100%) / 2); height: auto; max-height: calc(var(--vvh, 100%) - 20px); transform: translateY(-50%); }
-  body.kb .sheet-panel { padding-bottom: 12px; }
+  .sheet-panel, .sheet-panel.wide { position: absolute; left: var(--pk-m); right: var(--pk-m); top: calc(var(--vvt, 0px) + var(--pk-m)); width: auto; height: calc(var(--vvh, 100%) - 2 * var(--pk-m)); max-height: none;
+    display: flex; flex-direction: column; overflow: hidden; padding: 0; border-radius: var(--pk-r); background: var(--bg); box-shadow: var(--pk-shadow); }
+  .sheet-panel:not(.wide) { top: calc(var(--vvt, 0px) + var(--vvh, 100%) / 2); height: auto; max-height: calc(var(--vvh, 100%) - 2 * var(--pk-m)); transform: translateY(-50%); }  
+  .sheet-h { position: static; flex: none; padding: 12px 16px 10px; border-bottom: 1px solid var(--line); }
+  .sheet-h b { font-size: 16px; min-width: 0; }
+  .sheet-h .done { font-size: 16px; }
+  .sheet-h .done.cancel { justify-self: start; font-weight: 400; }  
+  .sheet-h .done[disabled] { opacity: 0.4; }
+  .sheet-b { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 12px 16px 16px; }
+  .sheet-panel > .imp-act { flex: none; position: static; margin: 0; padding: 10px 16px 12px; border-top: 1px solid var(--line); }
 }
 
 @media (max-width: 600px) {
@@ -1322,7 +1315,7 @@ const DEF_CFG = {
 let CFG = store.get("cfg", null) || JSON.parse(JSON.stringify(DEF_CFG));
 const saveCfg = () => store.set("cfg", CFG);
 
-const VERSION = "0.7.0";
+const VERSION = "0.8.0";
 const FINE = matchMedia("(pointer: fine)").matches;
 const Q = new URLSearchParams(location.search);
 const S = { live: false, view: Q.get("view") || store.get("view", "grid"), rf: "all", rq: "", showOff: false, me: Q.get("me") ?? store.get("me", ""), admin: Q.get("admin") === "1", month: Q.get("m") || "", hidePast: false, open: new Set(), allOpen: Q.get("open") === "all", changes: [], noteOpen: {} };
@@ -2061,8 +2054,8 @@ function cfgSheet() {
     <div class="cfg-h">Столбцы песен</div>${colT}<div class="cfg-list" style="margin-top:8px">${colX}</div><div class="tools"><button class="tool" type="button" data-c="sxadd">+ Столбец</button></div>
     <div class="cfg-h">Поля служения</div>${fT}<div class="cfg-list" style="margin-top:8px">${fX}</div><div class="tools"><button class="tool" type="button" data-c="fxadd">+ Поле</button></div>
     <div class="addrow" style="margin-top:20px"><button class="btn ghost" type="button" data-c="reset">Сбросить настройки</button></div>`);
-  const panel = $("#layer .sheet-panel"), keep = panel.scrollTop;
-  const redraw = (top) => { saveCfg(); render(); cfgSheet(); $("#layer .sheet-panel").scrollTop = top; };
+  const panel = sheetSc(), keep = panel.scrollTop;
+  const redraw = (top) => { saveCfg(); render(); cfgSheet(); sheetSc().scrollTop = top; };
   panel.onclick = (e) => {
     const b = e.target.closest("[data-c]"); if (!b || b.tagName === "INPUT") return;
     const c = b.dataset.c, k = +b.dataset.k;
@@ -2089,15 +2082,19 @@ function cfgSheet() {
     else if (c === "sxname") CFG.songCustom[k].name = t.value.trim() || CFG.songCustom[k].name;
     else if (c === "fxname") CFG.evCustom[k].name = t.value.trim() || CFG.evCustom[k].name;
     else return;
-    redraw($("#layer .sheet-panel").scrollTop);
+    redraw(sheetSc().scrollTop);
   };
 }
 function openSheet(title, html, o = {}) {
-  $("#layer").innerHTML = `<div class="sheet" id="sh"><div class="sheet-panel${o.cls ? " " + o.cls : ""}" role="dialog" aria-label="${esc(title)}"><div class="sheet-h"><span>${pkChip()}</span><b>${esc(title)}</b><button class="done" type="button" id="sh-x">${esc(o.done || "Готово")}</button></div>${html}</div></div>`;
+  const head = o.go ? `<button class="done cancel" type="button" id="sh-x">Отмена</button><b>${esc(title)}<small id="sh-sub"></small></b><button class="done" type="button" id="${o.goId || "sh-go"}" disabled>${esc(o.go)}</button>`
+    : `<span></span><b>${esc(title)}</b><button class="done" type="button" id="sh-x">${esc(o.done || "Готово")}</button>`;
+  $("#layer").innerHTML = `<div class="sheet" id="sh"><div class="sheet-panel${o.cls ? " " + o.cls : ""}" role="dialog" aria-label="${esc(title)}"><div class="sheet-h">${head}</div><div class="sheet-b">${html}</div></div></div>`;
+  const act = $("#layer .sheet-b > .imp-act:last-child"); if (act) $("#layer .sheet-panel").append(act);
   $("#sh").onclick = (e) => { if (e.target.id === "sh") closeSheet(); };
   $("#sh-x").onclick = closeSheet;
 }
 function closeSheet() { closePop(); $("#layer").innerHTML = ""; }
+const sheetSc = () => { const b = $("#layer .sheet-b"); return b && getComputedStyle(b).overflowY !== "visible" ? b : $("#layer .sheet-panel"); };
 let tt;
 function toast(t) { let el = $("#toast"); if (!el) { el = document.createElement("div"); el.id = "toast"; el.className = "toast"; document.body.append(el); } el.textContent = t; el.hidden = false; clearTimeout(tt); tt = setTimeout(() => (el.hidden = true), 2600); }
 
@@ -2496,7 +2493,7 @@ function popover(anchor, html, setup, o = {}) {
   closePop();
   const pk = !FINE && !!o.title;
   const el = document.createElement("div"); el.className = pk ? "pop pk" : "pop"; el.id = "pop";
-  el.innerHTML = pk ? `<div class="pk-p" role="dialog" aria-label="${esc(o.title)}"><div class="pk-h"><b>${esc(o.title)}${o.sub ? `<small>${esc(o.sub)}</small>` : ""}</b>${pkChip()}<button class="pk-x" type="button">Закрыть</button></div>${html}</div>` : html;
+  el.innerHTML = pk ? `<div class="pk-p" role="dialog" aria-label="${esc(o.title)}"><div class="pk-h"><b>${esc(o.title)}${o.sub ? `<small>${esc(o.sub)}</small>` : ""}</b><button class="pk-x" type="button">Закрыть</button></div>${html}</div>` : html;
   document.body.append(el);
   if (pk) {
     el.querySelector(".pk-x").addEventListener("click", (e) => { e.stopPropagation(); closePop(); });
@@ -2573,21 +2570,22 @@ function impPick(el) {
 const isoAdd = (iso, n) => { const d = new Date(iso + "T12:00:00Z"); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
 function importSheet(ev0) {
   if (!S.imp || (ev0 && S.imp.def !== ev0.id)) S.imp = { def: ev0 ? ev0.id : (nextEv() || {}).id, text: ev0 && ev0.items.length ? listText(ev0, false) : S.imp && !ev0 ? S.imp.text : "" };
-  openSheet("Вставить список текстом", `<div class="imp"><div>
+  const ios = !FINE && matchMedia("(max-width: 600px)").matches;
+  openSheet(ios ? "Список текстом" : "Вставить список текстом", `<div class="imp"><div>
       <textarea class="txa" id="im-t" placeholder="${esc(IMP_EX)}" spellcheck="false">${esc(S.imp.text)}</textarea>
       <details class="imp-hd"${matchMedia("(min-width: 900px)").matches ? " open" : ""}><summary>Как писать</summary><div class="imp-help"><span>Понимает вид из таблицы и чата: <code>1. Славь | A | 127 | Drums | 🙏 Пётр | 🎤 Все</code></span>
         <span>и ответ ИИ — списком, таблицей, с подписями «Тон: A, темп 127».</span>
         <span><code>Название:</code> — заголовок, пустая строка между песнями — пустая строка в списке. Даты в тексте (<code>08.11</code>, <code>15 ноября</code>) делят список по служениям — так вставляется месяц.</span></div></details>
     </div><div id="im-p"></div></div>
-    <div class="imp-act"><button class="btn" type="button" id="im-go" disabled>Применить</button><span class="muted" id="im-s" style="font-size:13px"></span></div>`, { cls: "wide", done: "Отмена" });
+    ${ios ? "" : `<div class="imp-act"><button class="btn" type="button" id="im-go" disabled>Применить</button><span class="muted" id="im-s" style="font-size:13px"></span></div>`}`, ios ? { cls: "wide", go: "Применить", goId: "im-go" } : { cls: "wide", done: "Отмена" });
   let tm;
   const upd = () => {
     S.imp.text = $("#im-t").value;
     const r = (S.imp.res = impParse(S.imp.text, S.imp.def)), n = r.targets.length;
     $("#im-p").innerHTML = n ? r.targets.map((t, ti) => impCard(t, S.imp.def, ti)).join("") : `<div class="imp-empty">Вставь список — здесь будет видно, как он встанет в график</div>`;
-    const go = $("#im-go"); go.disabled = !n;
-    go.textContent = n === 1 ? `Применить к ${dShort(r.targets[0].iso)}` : n ? `Применить к ${n} ${plural(n, "служению", "служениям", "служениям")}` : "Применить";
-    $("#im-s").textContent = n ? "Песню, тон, темп и имена можно поменять прямо в превью — текст поправится сам" : "";
+    const go = $("#im-go"), to = n === 1 ? `к ${dShort(r.targets[0].iso)}` : n ? `к ${n} ${plural(n, "служению", "служениям", "служениям")}` : ""; go.disabled = !n;
+    if (ios) $("#sh-sub").textContent = n ? "применить " + to : "вставь список";
+    else { go.textContent = n ? "Применить " + to : "Применить"; $("#im-s").textContent = n ? "Песню, тон, темп и имена можно поменять прямо в превью — текст поправится сам" : ""; }
   };
   S.imp.upd = upd;
   $("#im-t").oninput = () => { clearTimeout(tm); tm = setTimeout(upd, 120); };
@@ -3142,35 +3140,37 @@ function morphNode(a, b) {
   morphKids(a, b);
   if (a.nodeName === "SELECT" && sync) { const o = [...b.options].findIndex((x) => x.hasAttribute("selected")); a.selectedIndex = Math.max(0, o); }
 }
-const PK_V = [["full", "Экран"], ["card", "Карточка"], ["sheet", "Шторка"], ["glass", "Стекло"]];
-{ const q = Q.get("pk"), v = PK_V.some(([x]) => x === q) ? q : store.get("pk", "full"); document.documentElement.dataset.pk = PK_V.some(([x]) => x === v) ? v : "full"; }
-const pkName = () => (PK_V.find(([v]) => v === document.documentElement.dataset.pk) || PK_V[0])[1];
-const pkChip = () => (FINE ? "" : `<button class="pk-v" type="button" title="Вид окна — на пробу: Экран, Карточка, Шторка, Стекло"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="12" height="12" rx="3"/><rect x="9" y="9" width="12" height="12" rx="3"/></svg><span>${pkName()}</span></button>`);
-document.addEventListener("mousedown", (e) => { if (e.target.closest && e.target.closest(".pk-v")) e.preventDefault(); }, true);
-document.addEventListener("click", (e) => {
-  if (!e.target.closest || !e.target.closest(".pk-v")) return;
-  e.stopPropagation();
-  const i = PK_V.findIndex(([v]) => v === document.documentElement.dataset.pk), v = PK_V[(i + 1) % PK_V.length][0];
-  document.documentElement.dataset.pk = v; store.set("pk", v); document.querySelectorAll(".pk-v span").forEach((x) => (x.textContent = pkName()));
-}, true);
 let LOCKY = 0, LOCKT = 0;
 function syncLock() {
   const h = document.documentElement, on = !!(document.querySelector("#layer > *") || document.querySelector("#pop.pk"));
   if (on === h.classList.contains("lock")) return;
+  tint(on);
   if (on) { LOCKY = scrollY; h.classList.add("lock"); return; }
   h.classList.remove("lock");
   const y = LOCKY, back = () => { if (Math.abs(scrollY - y) > 1) scrollTo(scrollX, y); };
   back(); requestAnimationFrame(back); clearTimeout(LOCKT); LOCKT = setTimeout(back, 300);
 }
+function tint(on) {
+  let m = $('meta[name="theme-color"]');
+  if (!on) { if (m) m.remove(); return; }
+  const c = getComputedStyle(document.documentElement).getPropertyValue("--bg").trim().match(/^#([0-9a-f]{6})$/i); if (!c) return;
+  const k = 0.7, hex = (i) => Math.round(parseInt(c[1].slice(i, i + 2), 16) * k).toString(16).padStart(2, "0");
+  if (!m) { m = document.createElement("meta"); m.name = "theme-color"; document.head.append(m); }
+  m.content = "#" + hex(0) + hex(2) + hex(4);
+}
 if (!FINE) {
-  document.addEventListener("touchstart", () => clearTimeout(LOCKT), { capture: true, passive: true });
+  let tX = 0, tY = 0;
+  document.addEventListener("touchstart", (e) => { clearTimeout(LOCKT); if (e.touches.length === 1) { tX = e.touches[0].clientX; tY = e.touches[0].clientY; } }, { capture: true, passive: true });
   new MutationObserver(syncLock).observe(document.body, { childList: true });
   new MutationObserver(syncLock).observe($("#layer"), { childList: true });
   document.addEventListener("touchmove", (e) => {
-    if (!document.documentElement.classList.contains("lock")) return;
+    if (!document.documentElement.classList.contains("lock") || e.touches.length !== 1) return;
+    const t = e.touches[0], dx = t.clientX - tX, dy = t.clientY - tY; tX = t.clientX; tY = t.clientY;
+    const vert = Math.abs(dy) >= Math.abs(dx);
     for (let n = e.target; n && n.nodeType === 1 && n !== document.body; n = n.parentElement) {
       const cs = getComputedStyle(n);
-      if ((n.scrollHeight > n.clientHeight + 1 && /auto|scroll/.test(cs.overflowY)) || (n.scrollWidth > n.clientWidth + 1 && /auto|scroll/.test(cs.overflowX))) return;
+      if (vert && /auto|scroll/.test(cs.overflowY) && n.scrollHeight > n.clientHeight + 1 && (dy > 0 ? n.scrollTop > 0 : n.scrollTop + n.clientHeight < n.scrollHeight - 1)) return;
+      if (!vert && /auto|scroll/.test(cs.overflowX) && n.scrollWidth > n.clientWidth + 1 && (dx > 0 ? n.scrollLeft > 0 : n.scrollLeft + n.clientWidth < n.scrollWidth - 1)) return;
     }
     e.preventDefault();
   }, { passive: false });
