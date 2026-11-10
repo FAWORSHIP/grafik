@@ -616,19 +616,68 @@ body.kb .dock { display: none; }
   .toast { bottom: calc(84px + env(safe-area-inset-bottom, 0px)); }
 }
 
-.pop.pk { left: 0; right: 0; top: var(--vvt, 0px); width: auto; height: var(--vvh, 100%); padding: 0 0 env(safe-area-inset-bottom, 0px); border: 0; border-radius: 0; box-shadow: none; display: flex; flex-direction: column; gap: 0; z-index: 80; overscroll-behavior: contain; }
-.pk > :not(.pk-h):not(.pop-l):not(.cbx-pop) { flex: none; margin: 10px 12px 0; }
-.pk-h { flex: none; display: flex; align-items: center; gap: 10px; padding: max(10px, env(safe-area-inset-top, 0px)) 12px 10px; border-bottom: 1px solid var(--line); }
+:root { --pk-l: 0px; --pk-t: 0px; --pk-b: 0px; --pk-r: 0px; --pk-scrim: var(--bg); --pk-blur: none; --pk-panel: var(--bg); --pk-shadow: none; }
+:root[data-pk="card"] { --pk-l: 10px; --pk-t: 10px; --pk-b: 10px; --pk-r: 20px; --pk-scrim: rgb(0 0 0 / 0.3); --pk-blur: blur(12px) saturate(1.2); --pk-shadow: 0 0 0 1px var(--line), 0 20px 60px rgb(0 0 0 / 0.35); }
+:root[data-pk="sheet"] { --pk-t: 56px; --pk-r: 20px 20px 0 0; --pk-scrim: rgb(0 0 0 / 0.4); --pk-blur: blur(4px); --pk-shadow: 0 -8px 30px rgb(0 0 0 / 0.22); }
+:root[data-pk="glass"] { --pk-scrim: color-mix(in srgb, var(--bg) 38%, transparent); --pk-blur: blur(22px) saturate(1.6); --pk-panel: transparent; }
+html.lock { overflow: hidden; }  
+.pop.pk { position: fixed; inset: 0; width: auto; height: auto; padding: 0; border: 0; border-radius: 0; box-shadow: none; background: none; display: block; z-index: 80; }
+.pop.pk::before { content: ""; position: absolute; left: 0; right: 0; top: -50vh; bottom: -50vh; background: var(--pk-scrim); -webkit-backdrop-filter: var(--pk-blur); backdrop-filter: var(--pk-blur); }
+.pk-p { position: absolute; left: var(--pk-l); right: var(--pk-l); top: calc(var(--vvt, 0px) + var(--pk-t)); height: calc(var(--vvh, 100%) - var(--pk-t) - var(--pk-b)); display: flex; flex-direction: column; overflow: hidden; background: var(--pk-panel); border-radius: var(--pk-r); box-shadow: var(--pk-shadow); }
+.pk-p > :not(.pk-h):not(.pop-l):not(.cbx-pop) { flex: none; margin: 10px 12px 0; }
+.pk-h { position: relative; flex: none; display: flex; align-items: center; gap: 8px; padding: 12px 12px 10px; border-bottom: 1px solid var(--line); }
+:root[data-pk="sheet"] .pk-h { padding-top: 20px; }
+:root[data-pk="sheet"] .pk-h::before, :root[data-pk="sheet"] .sheet-h::before { content: ""; position: absolute; top: 7px; left: 50%; width: 36px; height: 5px; margin-left: -18px; border-radius: 3px; background: var(--line); }
+:root[data-pk="glass"] .pk-h { border-bottom-color: transparent; }
 .pk-h b { flex: 1; min-width: 0; font-size: 16px; }
 .pk-h small { display: block; margin-top: 1px; font-weight: 400; font-size: 13px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pk-x { flex: none; border: 0; border-radius: 9px; background: var(--chip); color: var(--ink); padding: 8px 12px; font-size: 15px; font-weight: 600; }
-.pk .pop-q { width: auto; padding: 10px 12px; border-radius: 10px; }
-.pk .pop-n .pop-q { flex: 1; }
-.pk .pop-l, .pk .cbx-pop { position: static; flex: 1; min-height: 0; max-height: none; width: auto; margin: 6px 0 0; padding: 0 8px 12px; overflow-y: auto; overscroll-behavior: contain; border: 0; border-radius: 0; box-shadow: none; background: none; }
-.pk .pop-l button, .pk .cbx-pop button { padding: 11px 10px; font-size: 16px; }
-.pk .pop-l small, .pk .cbx-pop button small { font-size: 13px; }
-.pk .cbx-g { padding: 14px 10px 4px; font-size: 12.5px; }
-.pk .pop-a.qb button { padding: 10px 12px; font-size: 15px; }
+.pk-v { flex: none; display: inline-flex; align-items: center; gap: 5px; border: 1px solid var(--line); background: none; color: var(--muted); border-radius: 999px; padding: 5px 9px; font-size: 12.5px; font-weight: 600; white-space: nowrap; }
+.pk-v svg { width: 14px; height: 14px; }
+.sheet-h .pk-v { justify-self: start; }
+.pk-p .pop-q { width: auto; padding: 10px 12px; border-radius: 10px; }
+:root[data-pk="glass"] .pk-p .pop-q { background: color-mix(in srgb, var(--bg2) 70%, transparent); }
+.pk-p .pop-n .pop-q { flex: 1; }
+.pk-p .pop-l, .pk-p .cbx-pop { position: static; flex: 1; min-height: 0; max-height: none; width: auto; margin: 6px 0 0; padding: 0 8px calc(12px + env(safe-area-inset-bottom, 0px)); overflow-y: auto; overscroll-behavior: contain; border: 0; border-radius: 0; box-shadow: none; background: none; }
+.pk-p .pop-l button, .pk-p .cbx-pop button { padding: 11px 10px; font-size: 16px; }
+.pk-p .pop-l button { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }  
+.pk-p .pop-l button b { font-weight: 400; min-width: 0; }
+.pk-p .pop-l small, .pk-p .cbx-pop button small { flex: 0 1 auto; text-align: right; font-size: 13px; }
+.pk-p .cbx-g { padding: 14px 10px 4px; font-size: 12.5px; }
+.pk-p .pop-a.qb button { padding: 10px 12px; font-size: 15px; }
+
+.pop:not(.pk) .cbx-pop { position: static; max-height: 16rem; width: auto; padding: 0; border: 0; border-radius: 0; box-shadow: none; background: none; }
+
+@media (max-width: 600px) and (pointer: coarse) {
+  .sheet { inset: 0; height: auto; padding: 0; display: block; background: none; }
+  .sheet::before { content: ""; position: absolute; left: 0; right: 0; top: -50vh; bottom: -50vh; background: var(--pk-scrim); -webkit-backdrop-filter: var(--pk-blur); backdrop-filter: var(--pk-blur); }
+  .sheet-panel, .sheet-panel.wide { position: absolute; left: var(--pk-l); right: var(--pk-l); top: calc(var(--vvt, 0px) + var(--pk-t)); width: auto; height: calc(var(--vvh, 100%) - var(--pk-t) - var(--pk-b)); max-height: none; border-radius: var(--pk-r); background: var(--pk-panel); box-shadow: var(--pk-shadow); padding: 0 16px calc(16px + env(safe-area-inset-bottom, 0px)); overscroll-behavior: contain; }
+  .sheet-h { background: var(--pk-panel); }
+  :root[data-pk="sheet"] .sheet-h { padding-top: 22px; }
+  :root[data-pk="glass"] .sheet-h { -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px); }
+  
+  :root[data-pk="sheet"] .sheet-panel:not(.wide) { top: auto; bottom: calc(100% - var(--vvt, 0px) - var(--vvh, 100%)); height: auto; max-height: calc(var(--vvh, 100%) - var(--pk-t)); }
+  :root[data-pk="card"] .sheet-panel:not(.wide) { top: calc(var(--vvt, 0px) + var(--vvh, 100%) / 2); height: auto; max-height: calc(var(--vvh, 100%) - 20px); transform: translateY(-50%); }
+  body.kb .sheet-panel { padding-bottom: 12px; }
+}
+
+@media (max-width: 600px) {
+  .imp-card { overflow-x: visible; }
+  table.imp-t, .imp-t tbody { display: block; }
+  .imp-t tr { position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 9px 0 9px calc(1.5em + 6px); border-top: 1px solid var(--line); }
+  .imp-t tr:first-child, .imp-t tr.sec + tr { border-top: 0; }
+  .imp-t td, .imp-t td + td { display: block; padding: 0; border: 0; white-space: normal; }
+  .imp-t td.n { position: absolute; left: 0; top: 9px; }  
+  .imp-t td.nm { flex: 1 1 100%; min-width: 0; }
+  .imp-t td:not(.n):not(.nm) .pe { display: inline-flex; align-items: center; gap: 4px; min-height: 34px; margin: 0; padding: 4px 11px; border: 1px solid var(--line); border-radius: 999px; background: var(--bg2); font-size: 14px; white-space: nowrap; }
+  .imp-t td:not(.n):not(.nm) .pe .kc { box-shadow: none !important; background: none !important; padding: 0; min-width: 0; font-size: 14px; }
+  .imp-t td:not(.n):not(.nm) .pe:has(.kc.chg) { border-color: var(--warn); background: var(--warn-soft); }
+  .imp-t td:not(.n):not(.nm) .pe .pill { margin: 0; }
+  .imp-t .hintk { display: inline-block; margin: 0 0 0 6px; vertical-align: middle; }
+  .imp-t tr.sec { padding: 14px 0 2px; border-top: 0; }
+  .imp-t tr.sec.gap { padding: 4px 0; }
+  .imp-t tr.nt { display: block; padding-left: 0; }
+}
 </style>
 </head>
 <body>
@@ -1273,7 +1322,7 @@ const DEF_CFG = {
 let CFG = store.get("cfg", null) || JSON.parse(JSON.stringify(DEF_CFG));
 const saveCfg = () => store.set("cfg", CFG);
 
-const VERSION = "0.6.0";
+const VERSION = "0.7.0";
 const FINE = matchMedia("(pointer: fine)").matches;
 const Q = new URLSearchParams(location.search);
 const S = { live: false, view: Q.get("view") || store.get("view", "grid"), rf: "all", rq: "", showOff: false, me: Q.get("me") ?? store.get("me", ""), admin: Q.get("admin") === "1", month: Q.get("m") || "", hidePast: false, open: new Set(), allOpen: Q.get("open") === "all", changes: [], noteOpen: {} };
@@ -1486,7 +1535,7 @@ function cbxEl() {
   let el = $("#cbx");
   if (!el) {
     el = document.createElement("div"); el.id = "cbx"; el.className = "cbx-pop"; el.setAttribute("role", "listbox");
-    (CBX.inp && CBX.inp.closest("#pop.pk") || document.body).append(el);
+    (CBX.inp && CBX.inp.closest("#pop") ? CBX.inp.parentNode : document.body).append(el);
     el.addEventListener("mousedown", (ev) => ev.preventDefault());
     el.addEventListener("click", (ev) => { const b = ev.target.closest("[data-v]"); if (b) cbxPick(b.dataset.v); });
   }
@@ -1545,25 +1594,38 @@ function cbxPlace() {
 function cbxClose() { const el = $("#cbx"); if (el) el.remove(); if (CBX.inp) CBX.inp.setAttribute("aria-expanded", "false"); CBX.inp = null; CBX.hi = -1; }
 function cbxPick(v) {
   const inp = CBX.inp; if (!inp) return;
-  const to = cbxTarget(inp);
-  if (inp.dataset.cbx) { to.value = v; to.dataset.picked = "1"; }
-  else { const pre = cbxSeg(inp.value)[0]; to.value = v ? pre + v : pre.replace(/\s*\/\s*$/, ""); }
-  cbxClose(); if (to !== inp) closePop();
-  if (to.dataset.cbx) { CBX.quiet = true; to.dispatchEvent(new Event("input", { bubbles: true })); CBX.quiet = false; }
-  to.dispatchEvent(new Event("change", { bubbles: true })); cbxDone(to);
+  if (inp.dataset.cbx) inp.value = v;
+  else { const pre = cbxSeg(inp.value)[0]; inp.value = v ? pre + v : pre.replace(/\s*\/\s*$/, ""); }
+  cbxClose();
+  if (inp._done || inp._to) return cbxBack(inp, !!inp.dataset.cbx);
+  if (inp.dataset.cbx) { inp.dataset.picked = "1"; CBX.quiet = true; inp.dispatchEvent(new Event("input", { bubbles: true })); CBX.quiet = false; }
+  inp.dispatchEvent(new Event("change", { bubbles: true })); cbxDone(inp);
 }
-const cbxTarget = (inp) => (PK && PK.orig && inp.closest("#pop") ? PK.orig : inp);
+function cbxBack(inp, picked) {
+  const v = inp.value, done = inp._done, to = inp._to; closePop();
+  if (done) return done(v);
+  if (!to.isConnected) return;
+  to.value = v;
+  if (picked) { to.dataset.picked = "1"; CBX.quiet = true; to.dispatchEvent(new Event("input", { bubbles: true })); CBX.quiet = false; }
+  to.dispatchEvent(new Event("change", { bubbles: true }));
+}
 function cbxKeep(inp) {
-  const to = cbxTarget(inp); if (to !== inp) to.value = inp.value;
-  cbxClose(); if (to !== inp) closePop(); to.dispatchEvent(new Event("change", { bubbles: true }));
+  cbxClose(); if (inp._done || inp._to) return cbxBack(inp, false);
+  inp.dispatchEvent(new Event("change", { bubbles: true }));
+}
+function fieldPick(anchor, o) {
+  const d = o.data || {}, data = Object.entries(d).filter(([, v]) => v != null && v !== "").map(([k, v]) => ` data-${k.replace(/[A-Z]/g, (c) => "-" + c.toLowerCase())}="${esc(v)}"`).join("");
+  popover(anchor, `<input class="pop-q cbx" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-label="${esc(o.title)}"${data} value="${esc(o.value || "")}" placeholder="${esc(o.ph || "Начни вводить")}" autocomplete="off" autocapitalize="${esc(o.cap || "sentences")}" spellcheck="false">`, (el) => {
+    const q = el.querySelector("input.cbx"); q._done = o.done; q._to = o.to;
+    CBX.inp = q; CBX.typed = false; cbxDraw();
+    if (FINE || d.cbx !== "list") q.focus();
+  }, { title: o.title, sub: o.sub });
 }
 function cbxOpen(inp) {
   const ev = D.events[+inp.dataset.ev], it = ev && inp.dataset.i != null ? ev.items[+inp.dataset.i] : null, lb = inp.closest("label");
   const title = inp.getAttribute("aria-label") || (lb && lb.querySelector("span") ? lb.querySelector("span").textContent : "") || "Выбор";
-  const sub = [it && it.kind === "song" ? it.name : "", ev ? dLong(ev.date) : ""].filter(Boolean).join(" · ");
-  const data = Object.entries(inp.dataset).filter(([k]) => k !== "picked").map(([k, v]) => ` data-${k.replace(/[A-Z]/g, (c) => "-" + c.toLowerCase())}="${esc(v)}"`).join("");
-  popover(inp, `<input class="pop-q cbx" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-label="${esc(title)}"${data} value="${esc(inp.value)}" placeholder="${esc(inp.placeholder && inp.placeholder !== "—" ? inp.placeholder : "Начни вводить")}" autocomplete="off" autocapitalize="${esc(inp.getAttribute("autocapitalize") || "sentences")}" spellcheck="false">`,
-    (el) => { PK.orig = inp; el.querySelector("input").focus(); }, { title, sub });
+  fieldPick(inp, { title, sub: [it && it.kind === "song" ? it.name : "", ev ? dLong(ev.date) : ""].filter(Boolean).join(" · "), value: inp.value,
+    data: Object.fromEntries(Object.entries(inp.dataset).filter(([k]) => k !== "picked")), ph: inp.placeholder && inp.placeholder !== "—" ? inp.placeholder : "", cap: inp.getAttribute("autocapitalize"), to: inp });
 }
 const cbxDone = (inp) => { if (!FINE && inp.isConnected && document.activeElement === inp && !inp.closest(".sheet")) inp.blur(); };
 document.addEventListener("focusin", (e) => {
@@ -1593,7 +1655,7 @@ document.addEventListener("keydown", (e) => {
     e.preventDefault();
     if ($("#cbx") && bs[CBX.hi]) cbxPick(bs[CBX.hi].dataset.v);
     else cbxKeep(e.target);
-  } else if (e.key === "Escape" && e.target.closest("#pop.pk")) { e.preventDefault(); closePop(); }
+  } else if (e.key === "Escape" && e.target.closest("#pop")) { e.preventDefault(); closePop(); }
   else if (e.key === "Escape" && $("#cbx")) { e.preventDefault(); cbxClose(); }
 }, true);
 addEventListener("scroll", cbxPlace, true); addEventListener("resize", cbxPlace);
@@ -2031,7 +2093,7 @@ function cfgSheet() {
   };
 }
 function openSheet(title, html, o = {}) {
-  $("#layer").innerHTML = `<div class="sheet" id="sh"><div class="sheet-panel${o.cls ? " " + o.cls : ""}" role="dialog" aria-label="${esc(title)}"><div class="sheet-h"><span></span><b>${esc(title)}</b><button class="done" type="button" id="sh-x">${esc(o.done || "Готово")}</button></div>${html}</div></div>`;
+  $("#layer").innerHTML = `<div class="sheet" id="sh"><div class="sheet-panel${o.cls ? " " + o.cls : ""}" role="dialog" aria-label="${esc(title)}"><div class="sheet-h"><span>${pkChip()}</span><b>${esc(title)}</b><button class="done" type="button" id="sh-x">${esc(o.done || "Готово")}</button></div>${html}</div></div>`;
   $("#sh").onclick = (e) => { if (e.target.id === "sh") closeSheet(); };
   $("#sh-x").onclick = closeSheet;
 }
@@ -2425,27 +2487,26 @@ function impCard(t, defId, ti) {
 }
 const impText = (r) => r.targets.map((t) => (r.heads ? [`${dShort(t.iso)} ${WD_S[P(t.iso).wd]}${t.title ? " · " + t.title : ""}${t.session ? ` · ${t.session} сессия` : ""}`] : []).concat(bodyText(blocksFrom(t.p), t.p.items, t.p.status)).join("\n")).join("\n\n");
 function closePop() {
-  const p = $("#pop"); if (p) { if (p.contains(document.activeElement)) document.activeElement.blur(); p.remove(); }
+  const p = $("#pop");
+  if (p) { if (CBX.inp && p.contains(CBX.inp)) cbxClose(); if (p.contains(document.activeElement)) document.activeElement.blur(); p.remove(); }
   document.removeEventListener("pointerdown", popOut, true);
-  if (PK) { const y = PK.y; PK = null; const back = () => { if (Math.abs(scrollY - y) > 1) scrollTo(scrollX, y); }; requestAnimationFrame(back); setTimeout(back, 400); }
 }
 function popOut(e) { if (!e.target.closest("#pop") && !e.target.closest("[data-pe]")) closePop(); }
 function popover(anchor, html, setup, o = {}) {
   closePop();
   const pk = !FINE && !!o.title;
   const el = document.createElement("div"); el.className = pk ? "pop pk" : "pop"; el.id = "pop";
-  el.innerHTML = (pk ? `<div class="pk-h"><b>${esc(o.title)}${o.sub ? `<small>${esc(o.sub)}</small>` : ""}</b><button class="pk-x" type="button">Закрыть</button></div>` : "") + html;
+  el.innerHTML = pk ? `<div class="pk-p" role="dialog" aria-label="${esc(o.title)}"><div class="pk-h"><b>${esc(o.title)}${o.sub ? `<small>${esc(o.sub)}</small>` : ""}</b>${pkChip()}<button class="pk-x" type="button">Закрыть</button></div>${html}</div>` : html;
   document.body.append(el);
   if (pk) {
-    PK = { y: scrollY, orig: null };
     el.querySelector(".pk-x").addEventListener("click", (e) => { e.stopPropagation(); closePop(); });
-    el.addEventListener("touchmove", (e) => { const l = e.target.closest(".pop-l, .cbx-pop"); if (!l || l.scrollHeight <= l.clientHeight) e.preventDefault(); }, { passive: false });
+    el.addEventListener("click", (e) => { if (e.target === el) closePop(); });
   }
   setup(el);
   POPA = anchor; placePop();
   setTimeout(() => document.addEventListener("pointerdown", popOut, true));
 }
-let POPA = null, PK = null;
+let POPA = null;
 function placePop() {
   const el = $("#pop"); if (!el || el.classList.contains("pk") || !POPA || !POPA.isConnected) return;
   const vv = window.visualViewport, top0 = vv ? vv.offsetTop : 0, bot0 = vv ? vv.offsetTop + vv.height : innerHeight;
@@ -2501,19 +2562,12 @@ function impPick(el) {
   if (f === "like") return setName(el.dataset.v);
   if (f === "usual") return apply(() => { s.key = el.dataset.v; s.flags = s.flags.filter((x) => x !== "key"); delete au.key; });
   if (f === "bpmset") return apply(() => { s.bpm = el.dataset.v; s.flags = s.flags.filter((x) => x !== "bpm?"); delete au.bpm; });
-  if (f === "name" || f === "tosong") return listPick(el, s.name, songCands, (v) => { const i = songInfo(v, s.sing, t.iso); return `<b>${esc(v)}</b><small>${[i.key ? (i.lib.key ? "" : "обычно ") + i.key : "", i.bpm, libId(v) ? "чарт есть" : "без чарта"].filter(Boolean).join(" · ")}</small>`; }, setName, f === "tosong" ? "Какая песня? Начни вводить…" : `Сейчас «${s.name}» — найти другую…`, { title: f === "tosong" ? "Какая это песня" : "Другая песня", sub: s.name });
+  if (f === "name" || f === "tosong") return listPick(el, s.name, songCands, (v) => songOpt(v, t.iso), setName, f === "tosong" ? "Какая песня? Начни вводить…" : "Заменить на… начни вводить", { title: f === "tosong" ? "Какая это песня" : "Заменить песню", sub: s.name });
   if (f === "key") return keyPop(el, s.key, inf, (k) => apply(() => { s.key = k; delete au.key; }));
-  if (f === "start") return popover(el, `<div class="pop-k st">${["", ...STARTS].map((x) => `<button type="button" data-v="${x}" aria-pressed="${(s.start || "") === x}">${x ? startTxt(x) : "—"}</button>`).join("")}</div>`, (p) => (p.onclick = (e) => { const b = e.target.closest("button"); if (!b) return; apply(() => { s.start = b.dataset.v; delete au.start; }); closePop(); }));
+  if (f === "start") return fieldPick(el, { title: "Кто начинает", sub: s.name, value: s.start || "", data: { cbx: "list", opts: "start" }, done: (v) => apply(() => { s.start = v.trim(); delete au.start; }) });
   if (f === "bpm") return bpmPop(el, s.bpm, inf, (v) => apply(() => { s.bpm = v; s.flags = s.flags.filter((x) => x !== "bpm?"); delete au.bpm; }), { title: "Темп", sub: s.name });
-  if (f === "pray" || f === "sing") {
-    const extra = f === "sing" ? ["Все"] : [];
-    return listPick(el, s[f], (q) => {
-      const k = norm(q), can = PEOPLE.filter((x) => x.p.abil.has(f)), rest = PEOPLE.filter((x) => !x.p.abil.has(f));
-      const all = [...new Set([...extra, ...can.map((x) => x.n), ...rest.map((x) => x.n)])], m = search(q, all, (n) => [n]);
-      return (k && !m.length ? all.map((n) => [n, lev(k, norm(n).slice(0, k.length + 1))]).sort((a, b) => a[1] - b[1]).slice(0, 4).map((x) => x[0]) : m).concat(!k && s[f] ? [""] : []);
-    }, (v) => (v ? `<b>${esc(v)}</b>${personOf(v, f) ? `<small>${f === "pray" ? "молитва" : "ведёт"} — ${personOf(v, f).counts[f] || 0} ${plural(personOf(v, f).counts[f] || 0, "раз", "раза", "раз")} по графику</small>` : ""}` : `<span class="muted">— никто</span>`),
-      (v) => apply(() => { s[f] = v; s.flags = s.flags.filter((x) => x !== f + "?" && x !== f); }), s[f] ? `Сейчас ${s[f]} — найти…` : f === "pray" ? "Кто молится — найти…" : "Кто ведёт — найти…", { title: f === "pray" ? "Молится" : "Ведёт", sub: s.name });
-  }
+  if (f === "pray" || f === "sing") return fieldPick(el, { title: f === "pray" ? "Молится" : "Ведёт", sub: s.name, value: s[f] || "", data: { act: "who", ab: f }, cap: "words",
+    done: (v) => apply(() => { s[f] = canonPeople(v, f); s.flags = s.flags.filter((x) => x !== f + "?" && x !== f); }) });
 }
 
 const isoAdd = (iso, n) => { const d = new Date(iso + "T12:00:00Z"); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
@@ -3087,6 +3141,39 @@ function morphNode(a, b) {
   if (a.nodeName === "TEXTAREA") { const v = b.textContent; if (a.defaultValue !== v) a.defaultValue = v; if (sync && a.value !== v) a.value = v; return; }
   morphKids(a, b);
   if (a.nodeName === "SELECT" && sync) { const o = [...b.options].findIndex((x) => x.hasAttribute("selected")); a.selectedIndex = Math.max(0, o); }
+}
+const PK_V = [["full", "Экран"], ["card", "Карточка"], ["sheet", "Шторка"], ["glass", "Стекло"]];
+{ const q = Q.get("pk"), v = PK_V.some(([x]) => x === q) ? q : store.get("pk", "full"); document.documentElement.dataset.pk = PK_V.some(([x]) => x === v) ? v : "full"; }
+const pkName = () => (PK_V.find(([v]) => v === document.documentElement.dataset.pk) || PK_V[0])[1];
+const pkChip = () => (FINE ? "" : `<button class="pk-v" type="button" title="Вид окна — на пробу: Экран, Карточка, Шторка, Стекло"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="12" height="12" rx="3"/><rect x="9" y="9" width="12" height="12" rx="3"/></svg><span>${pkName()}</span></button>`);
+document.addEventListener("mousedown", (e) => { if (e.target.closest && e.target.closest(".pk-v")) e.preventDefault(); }, true);
+document.addEventListener("click", (e) => {
+  if (!e.target.closest || !e.target.closest(".pk-v")) return;
+  e.stopPropagation();
+  const i = PK_V.findIndex(([v]) => v === document.documentElement.dataset.pk), v = PK_V[(i + 1) % PK_V.length][0];
+  document.documentElement.dataset.pk = v; store.set("pk", v); document.querySelectorAll(".pk-v span").forEach((x) => (x.textContent = pkName()));
+}, true);
+let LOCKY = 0, LOCKT = 0;
+function syncLock() {
+  const h = document.documentElement, on = !!(document.querySelector("#layer > *") || document.querySelector("#pop.pk"));
+  if (on === h.classList.contains("lock")) return;
+  if (on) { LOCKY = scrollY; h.classList.add("lock"); return; }
+  h.classList.remove("lock");
+  const y = LOCKY, back = () => { if (Math.abs(scrollY - y) > 1) scrollTo(scrollX, y); };
+  back(); requestAnimationFrame(back); clearTimeout(LOCKT); LOCKT = setTimeout(back, 300);
+}
+if (!FINE) {
+  document.addEventListener("touchstart", () => clearTimeout(LOCKT), { capture: true, passive: true });
+  new MutationObserver(syncLock).observe(document.body, { childList: true });
+  new MutationObserver(syncLock).observe($("#layer"), { childList: true });
+  document.addEventListener("touchmove", (e) => {
+    if (!document.documentElement.classList.contains("lock")) return;
+    for (let n = e.target; n && n.nodeType === 1 && n !== document.body; n = n.parentElement) {
+      const cs = getComputedStyle(n);
+      if ((n.scrollHeight > n.clientHeight + 1 && /auto|scroll/.test(cs.overflowY)) || (n.scrollWidth > n.clientWidth + 1 && /auto|scroll/.test(cs.overflowX))) return;
+    }
+    e.preventDefault();
+  }, { passive: false });
 }
 const typing = (t) => !!(t && t.matches && t.matches("input:not([type=checkbox]):not([type=radio]):not([type=button]):not([type=range]), textarea, select"));
 if (!FINE) {
