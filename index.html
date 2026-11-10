@@ -417,6 +417,11 @@ body.dnd, body.dnd * { cursor: grabbing !important; user-select: none; -webkit-u
 .fld { display: grid; gap: 4px; font-size: 13px; font-weight: 700; color: var(--muted); }
 .fld input, .fld select { width: 100%; padding: 9px 10px; border-radius: 9px; border: 1px solid var(--line); background: var(--bg2); color: var(--ink); font-size: 16px; font-weight: 700; }
 .fld2 { display: grid; grid-template-columns: 9rem minmax(0, 1fr); gap: 10px; }
+
+@media (pointer: coarse) {
+  .fld input[type="date"], .fld input[type="time"] { -webkit-appearance: none; appearance: none; min-width: 0; min-height: calc(1.4em + 20px); text-align: left; }
+  .fld input::-webkit-date-and-time-value { text-align: left; }
+}
 .qd { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-top: -4px; }
 .qd .muted { font-size: 12.5px; }
 .qdb { border: 1px solid var(--line); background: var(--bg2); border-radius: 8px; padding: 4px 9px; font-size: 13px; font-weight: 700; }
@@ -580,6 +585,32 @@ button.pill { border: 0; cursor: pointer; }
 [data-skin="b"] .gs td + td { border-left-color: var(--hair); }
 [data-skin="b"] .rt thead th, [data-skin="b"] .rt th.pn, [data-skin="b"] .rt td.pn { background: var(--bg); }
 [data-skin="b"] .rt thead th { letter-spacing: 0; font-size: 12px; }
+
+
+
+html, button, a, input, select, textarea, label, summary { touch-action: manipulation; }
+.grip, .tool.dragh { touch-action: none; }
+
+@media (pointer: coarse) { input, select, textarea { font-size: 16px !important; } }
+
+body.kb .top { position: relative; }
+body.kb .dock { display: none; }
+
+@media (pointer: coarse) { .sheet { top: var(--vvt, 0px); bottom: auto; height: var(--vvh, 100%); } }
+.imp-hd summary { cursor: pointer; font-size: 12.5px; color: var(--muted); margin-top: 6px; }
+@media (max-width: 600px) {
+  .sheet { padding: 0; align-items: flex-end; }
+  .sheet-panel { width: 100%; max-height: calc(100% - 12px); border-radius: 16px 16px 0 0; padding: 0 16px calc(16px + env(safe-area-inset-bottom, 0px)); overscroll-behavior: contain; }
+  .sheet-panel.wide { height: calc(100% - 12px); }
+  body.kb .sheet-panel { padding-bottom: 12px; }
+  .imp .txa { min-height: 0; height: 34vh; }
+  body.kb .imp .txa { height: calc(5 * 1.55em + 22px); }
+  body.kb .imp-hd, body.kb #im-s { display: none; }  
+  
+  .dock { left: 0; right: 0; bottom: 0; width: auto; max-width: none; margin: 0; gap: 6px; border-radius: 16px 16px 0 0; padding: 8px max(10px, env(safe-area-inset-right, 0px)) calc(8px + env(safe-area-inset-bottom, 0px)) max(10px, env(safe-area-inset-left, 0px)); box-shadow: 0 -6px 24px rgb(0 0 0 / 0.22); }
+  .dk-t { flex: 1 1 auto; }
+  .toast { bottom: calc(84px + env(safe-area-inset-bottom, 0px)); }
+}
 </style>
 </head>
 <body>
@@ -1495,12 +1526,13 @@ function cbxPick(v) {
   if (inp.dataset.cbx) {
     inp.value = v; inp.dataset.picked = "1"; cbxClose();
     CBX.quiet = true; inp.dispatchEvent(new Event("input", { bubbles: true })); CBX.quiet = false;
-    inp.dispatchEvent(new Event("change", { bubbles: true })); return;
+    inp.dispatchEvent(new Event("change", { bubbles: true })); return cbxDone(inp);
   }
   const pre = cbxSeg(inp.value)[0];
   inp.value = v ? pre + v : pre.replace(/\s*\/\s*$/, "");
-  cbxClose(); inp.dispatchEvent(new Event("change", { bubbles: true }));
+  cbxClose(); inp.dispatchEvent(new Event("change", { bubbles: true })); cbxDone(inp);
 }
+const cbxDone = (inp) => { if (!FINE && inp.isConnected && document.activeElement === inp && !inp.closest(".sheet")) inp.blur(); };
 document.addEventListener("focusin", (e) => { if (e.target.matches && e.target.matches("input.cbx")) { CBX.inp = e.target; CBX.typed = false; e.target.select(); cbxDraw(); } });
 document.addEventListener("focusout", (e) => { if (e.target === CBX.inp) cbxClose(); });
 document.addEventListener("input", (e) => { if (!CBX.quiet && e.target.matches && e.target.matches("input.cbx")) { CBX.inp = e.target; CBX.typed = true; cbxDraw(); } });
@@ -2429,9 +2461,9 @@ function importSheet(ev0) {
   if (!S.imp || (ev0 && S.imp.def !== ev0.id)) S.imp = { def: ev0 ? ev0.id : (nextEv() || {}).id, text: ev0 && ev0.items.length ? listText(ev0, false) : S.imp && !ev0 ? S.imp.text : "" };
   openSheet("Вставить список текстом", `<div class="imp"><div>
       <textarea class="txa" id="im-t" placeholder="${esc(IMP_EX)}" spellcheck="false">${esc(S.imp.text)}</textarea>
-      <div class="imp-help"><span>Понимает вид из таблицы и чата: <code>1. Славь | A | 127 | Drums | 🙏 Пётр | 🎤 Все</code></span>
+      <details class="imp-hd"${matchMedia("(min-width: 900px)").matches ? " open" : ""}><summary>Как писать</summary><div class="imp-help"><span>Понимает вид из таблицы и чата: <code>1. Славь | A | 127 | Drums | 🙏 Пётр | 🎤 Все</code></span>
         <span>и ответ ИИ — списком, таблицей, с подписями «Тон: A, темп 127».</span>
-        <span><code>Название:</code> — заголовок, пустая строка между песнями — пустая строка в списке. Даты в тексте (<code>08.11</code>, <code>15 ноября</code>) делят список по служениям — так вставляется месяц.</span></div>
+        <span><code>Название:</code> — заголовок, пустая строка между песнями — пустая строка в списке. Даты в тексте (<code>08.11</code>, <code>15 ноября</code>) делят список по служениям — так вставляется месяц.</span></div></details>
     </div><div id="im-p"></div></div>
     <div class="imp-act"><button class="btn" type="button" id="im-go" disabled>Применить</button><span class="muted" id="im-s" style="font-size:13px"></span></div>`, { cls: "wide", done: "Отмена" });
   let tm;
@@ -2441,7 +2473,7 @@ function importSheet(ev0) {
     $("#im-p").innerHTML = n ? r.targets.map((t, ti) => impCard(t, S.imp.def, ti)).join("") : `<div class="imp-empty">Вставь список — здесь будет видно, как он встанет в график</div>`;
     const go = $("#im-go"); go.disabled = !n;
     go.textContent = n === 1 ? `Применить к ${dShort(r.targets[0].iso)}` : n ? `Применить к ${n} ${plural(n, "служению", "служениям", "служениям")}` : "Применить";
-    $("#im-s").textContent = n ? "Песню, тон, темп и имена можно поменять прямо справа — текст слева поправится сам" : "";
+    $("#im-s").textContent = n ? "Песню, тон, темп и имена можно поменять прямо в превью — текст поправится сам" : "";
   };
   S.imp.upd = upd;
   $("#im-t").oninput = () => { clearTimeout(tm); tm = setTimeout(upd, 120); };
@@ -2461,7 +2493,8 @@ function importSheet(ev0) {
     S.imp = null; closeSheet(); R = buildRoster(); PEOPLE = peopleList(); history(); render();
     toast(r.targets.length === 1 ? `Список на ${dShort(r.targets[0].iso)} обновлён` : `Обновлено служений: ${r.targets.length}`);
   });
-  upd(); $("#im-t").focus();
+  upd();
+  if (FINE || !S.imp.text) $("#im-t").focus();
 }
 
 const abilities = () => CFG.roles.map((r) => ({ id: r.id, head: roleBdg(r, true), name: r.name, c: r.c }))
@@ -2803,7 +2836,9 @@ async function loadLive(quiet) {
   } catch (e) { S.loadErr = e.message || String(e); if (S.live && !quiet) toast("Не обновилось: " + S.loadErr); }
   finally { S.loading = false; render(); }
 }
-document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && S.live && Date.now() - (S.loadedAt || 0) > 60e3) loadLive(true); });
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible" && S.live && Date.now() - (S.loadedAt || 0) > 60e3 && !$("#layer").innerHTML && !typing(document.activeElement)) loadLive(true);
+});
 
 function pending() {
   if (!BOOK) return { n: 0, roster: false };
@@ -2949,6 +2984,41 @@ function evSheet(ev) {
   });
 }
 
+const TPL = document.createElement("template");
+const ctlKey = (n) => [n.nodeName, n.type, n.id, n.dataset.act, n.dataset.ev, n.dataset.r, n.dataset.f, n.dataset.x, n.dataset.bid, n.dataset.i].join("|");
+const sameKind = (a, b) => a.nodeType === b.nodeType && a.nodeName === b.nodeName
+  && (a.nodeType !== 1 || ((a.id || "") === (b.id || "") && (!/^(INPUT|SELECT|TEXTAREA)$/.test(a.nodeName) || ctlKey(a) === ctlKey(b))));
+function morph(root, html) { TPL.innerHTML = html; morphKids(root, TPL.content); TPL.innerHTML = ""; }
+function morphKids(a, b) {
+  let cur = a.firstChild;
+  for (const n of [...b.childNodes]) {
+    if (cur && !sameKind(cur, n) && cur.nextSibling && sameKind(cur.nextSibling, n)) { const x = cur; cur = cur.nextSibling; x.remove(); }
+    if (cur && sameKind(cur, n)) { morphNode(cur, n); cur = cur.nextSibling; } else a.insertBefore(n, cur);
+  }
+  while (cur) { const x = cur; cur = cur.nextSibling; x.remove(); }
+}
+function morphNode(a, b) {
+  if (a.nodeType !== 1) { if (a.nodeValue !== b.nodeValue) a.nodeValue = b.nodeValue; return; }
+  for (const at of [...a.attributes]) if (!b.hasAttribute(at.name)) a.removeAttribute(at.name);
+  for (const at of b.attributes) if (a.getAttribute(at.name) !== at.value) a.setAttribute(at.name, at.value);
+  const sync = a !== document.activeElement || a === S.changedEl;
+  if (a.nodeName === "INPUT") {
+    if (a.type === "checkbox" || a.type === "radio") a.checked = b.hasAttribute("checked");
+    else if (sync) { const v = b.getAttribute("value") ?? ""; if (a.value !== v) a.value = v; }
+    return;
+  }
+  if (a.nodeName === "TEXTAREA") { const v = b.textContent; if (a.defaultValue !== v) a.defaultValue = v; if (sync && a.value !== v) a.value = v; return; }
+  morphKids(a, b);
+  if (a.nodeName === "SELECT" && sync) { const o = [...b.options].findIndex((x) => x.hasAttribute("selected")); a.selectedIndex = Math.max(0, o); }
+}
+const FINE = matchMedia("(pointer: fine)").matches;
+const typing = (t) => !!(t && t.matches && t.matches("input:not([type=checkbox]):not([type=radio]):not([type=button]):not([type=range]), textarea, select"));
+if (!FINE) {
+  document.addEventListener("focusin", (e) => { if (typing(e.target)) document.body.classList.add("kb"); });
+  document.addEventListener("focusout", () => setTimeout(() => { if (!typing(document.activeElement)) document.body.classList.remove("kb"); }, 0));
+}
+function vvSync() { const vv = window.visualViewport, s = document.documentElement.style; if (!vv) return; s.setProperty("--vvh", vv.height + "px"); s.setProperty("--vvt", vv.offsetTop + "px"); }
+if (window.visualViewport) { ["resize", "scroll"].forEach((t) => visualViewport.addEventListener(t, vvSync)); vvSync(); }
 function toNext(gw) {
   const nxTh = gw.querySelector("thead th.next"), rl = gw.querySelector("thead th.rl");
   if (!nxTh || !rl) return false;
@@ -2967,7 +3037,7 @@ function render() {
   const y = scrollY, gw0 = $(".gwrap"), x = gw0 ? gw0.scrollLeft : 0;
   document.querySelectorAll("#tabs button").forEach((b) => b.setAttribute("aria-pressed", b.dataset.v === S.view));
   $("#lbar").hidden = !(S.loading || S.saving);
-  $("#main").innerHTML = S.view === "team" ? team() : grid();
+  morph($("#main"), S.view === "team" ? team() : grid());
   scrollTo(0, y);
   if (S.focusSec) { const [ev, id] = S.focusSec.split(":"), el = $(`[data-act="secname"][data-ev="${ev}"][data-bid="${id}"]`); S.focusSec = null; if (el) el.focus({ preventScroll: true }); }
   if (S.focusGrip) { const el = $(S.focusGrip); S.focusGrip = null; if (el) el.focus({ preventScroll: true }); }
@@ -2996,7 +3066,8 @@ const route = (el, type) => {
   if (a === "reload") { if (type === "click") loadLive(); return; }
   if (a === "signout") { if (type === "click") signOut(); return; }
   const b = S.admin && type !== "input" ? snap() : null;
-  (S.view === "team" ? teamAct : act)(el, type);
+  S.changedEl = el;
+  try { (S.view === "team" ? teamAct : act)(el, type); } finally { S.changedEl = null; }
   track(b);
 };
 main.addEventListener("pointerdown", (e) => {
