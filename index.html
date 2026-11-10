@@ -1333,7 +1333,7 @@ const live = (ev) => songs(ev).filter((s) => !s.flags.includes("struck"));
 function setUrl(ev, n) {
   const parts = live(ev).map((s) => (libId(s.name) || "!" + b64(s.name)) + (s.key ? "." + encodeURIComponent(kn(s.key).replace(/[^A-Za-z0-9#]/g, "")) : ""));
   const name = dShort(ev.date) + (ev.title ? ", " + ev.title : "") + (ev.session ? `, сессия ${ev.session}` : "");
-  return `https://faworship.github.io/#set/${parts.join(",")}${n ? "/" + n : ""}?n=${encodeURIComponent(name)}`;
+  return `https://chartset.github.io/#set/${parts.join(",")}${n ? "/" + n : ""}?n=${encodeURIComponent(name)}`;
 }
 const sorted = () => D.events.filter((e) => !e.deleted).sort((a, b) => a.date.localeCompare(b.date) || (a.session || 0) - (b.session || 0) || a.id - b.id);
 const nextEv = () => sorted().find((e) => e.date >= TODAY);
