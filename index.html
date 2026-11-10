@@ -243,7 +243,7 @@ body.dnd, body.dnd * { cursor: grabbing !important; user-select: none; -webkit-u
 
 .cw input.cbx[data-ab] { width: 100%; }
 .gs input.cbx[data-ab] { width: 7.5em; }
-.tinp input.cbx { width: 100%; }
+.tinp input.cbx { width: 100%; grid-column: 2 / -1; }
 .cbx-pop button > span { min-width: 0; overflow-wrap: anywhere; }
 .cbx-pop button > small { flex: none; }
 
@@ -284,7 +284,8 @@ body.dnd, body.dnd * { cursor: grabbing !important; user-select: none; -webkit-u
 .hed .row2 { display: flex; gap: 6px; align-items: center; justify-content: space-between; }
 .vchips { display: flex; flex-wrap: wrap; gap: 4px; }
 .vchip { display: inline-flex; align-items: center; gap: 4px; padding: 2px 4px 2px 8px; border-radius: 7px; background: var(--chip); font-weight: 700; font-size: 13px; }
-.tinp { display: grid; grid-template-columns: auto 1fr; gap: 4px 6px; align-items: center; font-size: 12px; color: var(--muted); font-weight: 700; }
+.tinp { display: grid; grid-template-columns: auto minmax(0, 1fr) auto minmax(0, 1fr); gap: 4px 6px; align-items: center; font-size: 12px; color: var(--muted); font-weight: 700; }  
+.tinp input[type="time"] { min-width: 0; width: 100%; }
 .about { margin-top: 28px; font-size: 13px; color: var(--muted); display: grid; gap: 6px; max-width: 50rem; }
 .about a { color: var(--accent-text); font-weight: 700; }
 
@@ -417,6 +418,7 @@ body.dnd, body.dnd * { cursor: grabbing !important; user-select: none; -webkit-u
 .fld { display: grid; gap: 4px; font-size: 13px; font-weight: 700; color: var(--muted); }
 .fld input, .fld select { width: 100%; padding: 9px 10px; border-radius: 9px; border: 1px solid var(--line); background: var(--bg2); color: var(--ink); font-size: 16px; font-weight: 700; }
 .fld2 { display: grid; grid-template-columns: 9rem minmax(0, 1fr); gap: 10px; }
+.fld2.tt { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }  
 
 @media (pointer: coarse) {
   .fld input[type="date"], .fld input[type="time"] { -webkit-appearance: none; appearance: none; min-width: 0; min-height: calc(1.4em + 20px); text-align: left; }
@@ -803,14 +805,16 @@ function parseHead(h, sheetName) {
   const m = DATE.exec(h);
   if (!m) return null;
   const [, d, mo, y] = m, rest = h.slice(m[0].length).replace(/\n/g, " ");
-  const ev = { date: `${y}-${mo}-${d}`, raw: h.replace(/\s+/g, " ").trim(), title: "", time: "", place: "", session: null, unsure: false };
+  const ev = { date: `${y}-${mo}-${d}`, raw: h.replace(/\s+/g, " ").trim(), title: "", meet: "", time: "", place: "", session: null, unsure: false };
   const sm = TAB_RE.exec(sheetName);
   if (sm && (FW.MONTHS_EN.indexOf(sm[1]) + 1 !== +mo || +sm[2] !== +y % 100)) ev.dateWarn = `дата ${d}.${mo}.${y} на листе «${sheetName}»`;
   let words = rest.replace(/[()]/g, " ").split(/\s+/).filter(Boolean);
   if (words.length && WEEKDAYS.includes(words[0].toUpperCase())) words = words.slice(1);
   let text = words.join(" ");
-  const t = new RegExp(`(?:${NB}в\\s+)?${NB}(\\d{1,2}:\\d{2})${NA}`, "u").exec(text);
-  if (t) { ev.time = t[1]; text = text.slice(0, t.index) + " " + text.slice(t.index + t[0].length); }
+  const mt = new RegExp(`${NB}сбор\\s*(?:в\\s+)?(\\d{1,2})[:.](\\d{2})${NA}`, "iu").exec(text);
+  if (mt) { ev.meet = mt[1].padStart(2, "0") + ":" + mt[2]; text = text.slice(0, mt.index) + " " + text.slice(mt.index + mt[0].length); }
+  const t = new RegExp(`(?:${NB}начало\\s+)?(?:${NB}в\\s+)?${NB}(\\d{1,2}:\\d{2})${NA}`, "iu").exec(text);
+  if (t) { ev.time = t[1].padStart(5, "0"); text = text.slice(0, t.index) + " " + text.slice(t.index + t[0].length); }
   const s = /(\d)\s*-?\s*я?\s*сессия/iu.exec(text);
   if (s) { ev.session = +s[1]; text = text.slice(0, s.index) + " " + text.slice(s.index + s[0].length); }
   const p = new RegExp(`(?:${NB}на\\s+)?${NB}(Руднева(?:\\s*\\d+)?|Продольная)${NA}`, "iu").exec(text);
@@ -1077,7 +1081,7 @@ function songsKey(ev) {
 }
 FW.groups = function (ev) {
   const g = {
-    head: [ev.date, ev.title || "", ev.time || "", ev.place || "", ev.session || null],
+    head: [ev.date, ev.title || "", ev.time || "", ev.place || "", ev.session || null, ev.meet || ""],
     songs: JSON.stringify(songsKey(ev)), dress: ev.dress || "", note: ev.note || "", xvoc: ev.extraVocals.join("\n"),
   };
   FW.ROLES.forEach(([id]) => (g["r:" + id] = ev.roles[id] || ""));
@@ -1113,7 +1117,7 @@ FW.headCell = function (ev, was) {
   if (was && was.text && was.onlyDate) return was.text.replace(DATE, (x) => x.replace(/\d{2}\.\d{2}\.\d{4}/, date)).replace(/\((ПН|ВТ|СР|ЧТ|ПТ|СБ|ВС)/, "(" + wdOf(ev.date));
   let t = (ev.title || "").replace(/\s*·\s*только второе$/i, " только второе");
   if (/^только второе служение$/i.test(t)) t = "только второе";
-  return [`${date} (${wdOf(ev.date)})`, t.toUpperCase(), ev.time, ev.place, ev.session ? `${ev.session}-я сессия` : ""].filter(Boolean).join(" ");
+  return [`${date} (${wdOf(ev.date)})`, t.toUpperCase(), ev.meet ? "сбор " + ev.meet : "", ev.meet && ev.time ? "начало " + ev.time : ev.time, ev.place, ev.session ? `${ev.session}-я сессия` : ""].filter(Boolean).join(" ");
 };
 function cellsFor(ev, L, only, was) {
   const out = [], put = (ri, text, runs = []) => { if (ri >= 0) out.push([ri, { text, runs }]); }, want = (k) => !only || only.has(k);
@@ -1315,7 +1319,7 @@ const DEF_CFG = {
 let CFG = store.get("cfg", null) || JSON.parse(JSON.stringify(DEF_CFG));
 const saveCfg = () => store.set("cfg", CFG);
 
-const VERSION = "0.8.1";
+const VERSION = "0.9.0";
 const FINE = matchMedia("(pointer: fine)").matches;
 const Q = new URLSearchParams(location.search);
 const S = { live: false, view: Q.get("view") || store.get("view", "grid"), rf: "all", rq: "", showOff: false, me: Q.get("me") ?? store.get("me", ""), admin: Q.get("admin") === "1", month: Q.get("m") || "", hidePast: false, open: new Set(), allOpen: Q.get("open") === "all", changes: [], noteOpen: {} };
@@ -1807,7 +1811,7 @@ function grid() {
       : esc(e.extraVocals.map(showN).join(", ")), e.extraVocals.some(meIn) ? "me" : "")).join("")}</tr>` : "");
   const edit = (e) => S.admin && isOpen(e);
   const tRow = CFG.fields.time && (S.admin || evs.some((e) => e.meet || e.time || e.place)) ? `<tr>${rowLab("time", "Время, место")}${hc}${evs.map((e) => td(e, edit(e)
-    ? `<div class="tinp">${S.live ? "" : `Сбор<input type="time" value="${esc(e.meet)}" data-act="f:meet" ${A(e)}>`}Начало<input type="time" value="${esc(e.time)}" data-act="f:time" ${A(e)}>Место<input class="cbx" data-cbx="list" data-opts="places" aria-label="Место" role="combobox" aria-autocomplete="list" aria-expanded="false" autocomplete="off" spellcheck="false" value="${esc(e.place)}" placeholder="как обычно" data-act="f:place" ${A(e)}></div>`
+    ? `<div class="tinp">Сбор<input type="time" value="${esc(e.meet)}" data-act="f:meet" aria-label="Сбор" ${A(e)}>Начало<input type="time" value="${esc(e.time)}" data-act="f:time" aria-label="Начало" ${A(e)}>Место<input class="cbx" data-cbx="list" data-opts="places" aria-label="Место" role="combobox" aria-autocomplete="list" aria-expanded="false" autocomplete="off" spellcheck="false" value="${esc(e.place)}" placeholder="как обычно" data-act="f:place" ${A(e)}></div>`
     : esc([e.meet ? "сбор " + e.meet : "", e.time ? "начало " + e.time : "", e.place].filter(Boolean).join(", ")), "txtc")).join("")}</tr>` : "";
   const dRow = CFG.fields.dress ? `<tr>${rowLab("dress", "Дресс-код")}${hc}${evs.map((e) => td(e, edit(e) ? `<textarea data-act="f:dress" ${A(e)} rows="2">${esc(e.dress)}</textarea>` : `${swatches(e.dress)}${esc(e.dress)}`, "txtc")).join("")}</tr>` : "";
   const nRow = CFG.fields.notes && (S.admin || evs.some((e) => e.note)) ? `<tr>${rowLab("note", "Пометки")}${hc}${evs.map((e) => td(e, edit(e) ? `<textarea data-act="f:note" ${A(e)} placeholder="Хор на первом, чек в 18:30, ссылки…">${esc(e.note)}</textarea>` : linkify(e.note), "txtc")).join("")}</tr>` : "";
@@ -3058,14 +3062,14 @@ const PLACES = ["Продольная", "Руднева"];
 function evSheet(ev) {
   const isNew = !ev, inM = monthEvs(), free = [];
   for (let d = S.month + "-01"; d.startsWith(S.month); d = isoAdd(d, 1)) if (P(d).wd === 0 && d >= TODAY && !inM.some((e) => e.date === d)) free.push(d);
-  const b = ev || { date: free[0] || nextSunday(inM.length ? inM[inM.length - 1].date : TODAY), title: "", time: "", place: "", session: null, status: "" };
+  const b = ev || { date: free[0] || nextSunday(inM.length ? inM[inM.length - 1].date : TODAY), title: "", meet: "", time: "", place: "", session: null, status: "" };
   const from = sorted().filter((e) => (Object.values(e.roles).some(Boolean) || e.vocals.length) && e.date <= b.date).slice(-6).reverse();
   openSheet(isNew ? "Новое служение" : `Служение ${dLong(ev.date)}`, `<div class="evf">
     <label class="fld"><span>Дата</span><input type="date" id="ef-date" value="${b.date}"></label>
     ${isNew && free.length ? `<div class="qd">${free.slice(0, 5).map((d) => `<button type="button" class="qdb" data-d="${d}" aria-pressed="${d === b.date}">вс ${dShort(d)}</button>`).join("")}<span class="muted">свободные воскресенья</span></div>` : ""}
     <label class="fld"><span>Название</span><input id="ef-title" class="cbx" data-cbx="list" data-opts="titles" role="combobox" aria-autocomplete="list" aria-expanded="false" autocomplete="off" spellcheck="false" value="${esc(b.title)}" placeholder="у воскресного можно пусто"></label>
-    <div class="fld2"><label class="fld"><span>Начало</span><input type="time" id="ef-time" value="${esc(b.time)}"></label>
-      <label class="fld"><span>Место</span><input id="ef-place" class="cbx" data-cbx="list" data-opts="places" role="combobox" aria-autocomplete="list" aria-expanded="false" autocomplete="off" spellcheck="false" value="${esc(b.place)}" placeholder="как обычно"></label></div>
+    <div class="fld2 tt"><label class="fld"><span>Сбор</span><input type="time" id="ef-meet" value="${esc(b.meet || "")}"></label><label class="fld"><span>Начало</span><input type="time" id="ef-time" value="${esc(b.time)}"></label></div>
+      <label class="fld"><span>Место</span><input id="ef-place" class="cbx" data-cbx="list" data-opts="places" role="combobox" aria-autocomplete="list" aria-expanded="false" autocomplete="off" spellcheck="false" value="${esc(b.place)}" placeholder="как обычно"></label>
     <label class="fld"><span>Сессия</span><select id="ef-sess"><option value="">одна</option>${[1, 2, 3].map((n) => `<option value="${n}"${b.session === n ? " selected" : ""}>${n}-я сессия</option>`).join("")}</select></label>
     ${isNew && from.length ? `<label class="fld"><span>Состав и вокал</span><select id="ef-copy"><option value="">пусто</option>${from.map((e) => `<option value="${e.id}">как ${esc(headText(e))}</option>`).join("")}</select></label>` : ""}
     <label class="chk"><input type="checkbox" id="ef-off" ${b.status ? "checked" : ""}> Не служим</label>
@@ -3086,7 +3090,7 @@ function evSheet(ev) {
   check();
   $("#ef-go").onclick = withUndo(() => {
     const d = v("ef-date"); if (!d) return;
-    const f = { date: d, title: v("ef-title"), time: v("ef-time"), place: v("ef-place"), session: +v("ef-sess") || null, status: $("#ef-off").checked ? "Не служим" : "" };
+    const f = { date: d, title: v("ef-title"), meet: v("ef-meet"), time: v("ef-time"), place: v("ef-place"), session: +v("ef-sess") || null, status: $("#ef-off").checked ? "Не служим" : "" };
     let e = ev;
     if (isNew) {
       e = newEvent(d); Object.assign(e, f);
@@ -3098,7 +3102,7 @@ function evSheet(ev) {
       Object.assign(ev, f);
       if (was.date !== f.date) log(ev, `дата ${dShort(was.date)} → ${dShort(f.date)}`);
       if ((was.title || "") !== f.title) log(ev, `название: ${f.title || "—"}`);
-      if ((was.time || "") !== f.time || (was.place || "") !== f.place) log(ev, `время и место: ${[f.time, f.place].filter(Boolean).join(", ") || "—"}`);
+      if ((was.meet || "") !== f.meet || (was.time || "") !== f.time || (was.place || "") !== f.place) log(ev, `время и место: ${[f.meet ? "сбор " + f.meet : "", f.time, f.place].filter(Boolean).join(", ") || "—"}`);
       if ((was.session || null) !== f.session) log(ev, f.session ? `${f.session}-я сессия` : "одна сессия");
       if ((was.status || "") !== f.status) log(ev, f.status ? "не служим" : "служим");
     }
