@@ -615,6 +615,20 @@ body.kb .dock { display: none; }
   .dk-t { flex: 1 1 auto; }
   .toast { bottom: calc(84px + env(safe-area-inset-bottom, 0px)); }
 }
+
+.pop.pk { left: 0; right: 0; top: var(--vvt, 0px); width: auto; height: var(--vvh, 100%); padding: 0 0 env(safe-area-inset-bottom, 0px); border: 0; border-radius: 0; box-shadow: none; display: flex; flex-direction: column; gap: 0; z-index: 80; overscroll-behavior: contain; }
+.pk > :not(.pk-h):not(.pop-l):not(.cbx-pop) { flex: none; margin: 10px 12px 0; }
+.pk-h { flex: none; display: flex; align-items: center; gap: 10px; padding: max(10px, env(safe-area-inset-top, 0px)) 12px 10px; border-bottom: 1px solid var(--line); }
+.pk-h b { flex: 1; min-width: 0; font-size: 16px; }
+.pk-h small { display: block; margin-top: 1px; font-weight: 400; font-size: 13px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pk-x { flex: none; border: 0; border-radius: 9px; background: var(--chip); color: var(--ink); padding: 8px 12px; font-size: 15px; font-weight: 600; }
+.pk .pop-q { width: auto; padding: 10px 12px; border-radius: 10px; }
+.pk .pop-n .pop-q { flex: 1; }
+.pk .pop-l, .pk .cbx-pop { position: static; flex: 1; min-height: 0; max-height: none; width: auto; margin: 6px 0 0; padding: 0 8px 12px; overflow-y: auto; overscroll-behavior: contain; border: 0; border-radius: 0; box-shadow: none; background: none; }
+.pk .pop-l button, .pk .cbx-pop button { padding: 11px 10px; font-size: 16px; }
+.pk .pop-l small, .pk .cbx-pop button small { font-size: 13px; }
+.pk .cbx-g { padding: 14px 10px 4px; font-size: 12.5px; }
+.pk .pop-a.qb button { padding: 10px 12px; font-size: 15px; }
 </style>
 </head>
 <body>
@@ -1259,7 +1273,8 @@ const DEF_CFG = {
 let CFG = store.get("cfg", null) || JSON.parse(JSON.stringify(DEF_CFG));
 const saveCfg = () => store.set("cfg", CFG);
 
-const VERSION = "0.5.0";
+const VERSION = "0.6.0";
+const FINE = matchMedia("(pointer: fine)").matches;
 const Q = new URLSearchParams(location.search);
 const S = { live: false, view: Q.get("view") || store.get("view", "grid"), rf: "all", rq: "", showOff: false, me: Q.get("me") ?? store.get("me", ""), admin: Q.get("admin") === "1", month: Q.get("m") || "", hidePast: false, open: new Set(), allOpen: Q.get("open") === "all", changes: [], noteOpen: {} };
 const SKIN0 = "b";
@@ -1470,7 +1485,8 @@ const CBX_LISTS = {
 function cbxEl() {
   let el = $("#cbx");
   if (!el) {
-    el = document.createElement("div"); el.id = "cbx"; el.className = "cbx-pop"; el.setAttribute("role", "listbox"); document.body.append(el);
+    el = document.createElement("div"); el.id = "cbx"; el.className = "cbx-pop"; el.setAttribute("role", "listbox");
+    (CBX.inp && CBX.inp.closest("#pop.pk") || document.body).append(el);
     el.addEventListener("mousedown", (ev) => ev.preventDefault());
     el.addEventListener("click", (ev) => { const b = ev.target.closest("[data-v]"); if (b) cbxPick(b.dataset.v); });
   }
@@ -1490,6 +1506,7 @@ function cbxDrawList(inp) {
     const found = search(q, (CBX_LISTS[inp.dataset.opts] || (() => []))(inp), ([v]) => [v]);
     html = found.map(([v, l]) => opt(v, l)).join("");
     hi = k && found.length && norm(found[0][0]).startsWith(k) ? 0 : -1;
+    if (inp.closest("#pop") && k && !found.some(([v]) => norm(v) === k)) html += opt(q, `Оставить «${esc(q)}»`, ' class="cbx-free"');
     if (!html) { const el = $("#cbx"); if (el) el.remove(); inp.setAttribute("aria-expanded", "false"); return; }
   }
   const el = cbxEl(); el.innerHTML = html || '<span class="muted">Ничего похожего</span>';
@@ -1516,7 +1533,7 @@ function cbxHi() {
   if (bs[CBX.hi]) bs[CBX.hi].scrollIntoView({ block: "nearest" });
 }
 function cbxPlace() {
-  const el = $("#cbx"), inp = CBX.inp; if (!el || !inp || !inp.isConnected) return;
+  const el = $("#cbx"), inp = CBX.inp; if (!el || !inp || !inp.isConnected || el.parentNode !== document.body) return;
   const vv = window.visualViewport, top0 = vv ? vv.offsetTop : 0, bot0 = vv ? vv.offsetTop + vv.height : innerHeight;
   const r = inp.getBoundingClientRect(), below = bot0 - r.bottom - 12, above = r.top - top0 - 12;
   el.style.width = Math.min(Math.max(r.width, 220), inp.dataset.cbx === "song" ? 360 : 320, innerWidth - 16) + "px";
@@ -1528,18 +1545,43 @@ function cbxPlace() {
 function cbxClose() { const el = $("#cbx"); if (el) el.remove(); if (CBX.inp) CBX.inp.setAttribute("aria-expanded", "false"); CBX.inp = null; CBX.hi = -1; }
 function cbxPick(v) {
   const inp = CBX.inp; if (!inp) return;
-  if (inp.dataset.cbx) {
-    inp.value = v; inp.dataset.picked = "1"; cbxClose();
-    CBX.quiet = true; inp.dispatchEvent(new Event("input", { bubbles: true })); CBX.quiet = false;
-    inp.dispatchEvent(new Event("change", { bubbles: true })); return cbxDone(inp);
-  }
-  const pre = cbxSeg(inp.value)[0];
-  inp.value = v ? pre + v : pre.replace(/\s*\/\s*$/, "");
-  cbxClose(); inp.dispatchEvent(new Event("change", { bubbles: true })); cbxDone(inp);
+  const to = cbxTarget(inp);
+  if (inp.dataset.cbx) { to.value = v; to.dataset.picked = "1"; }
+  else { const pre = cbxSeg(inp.value)[0]; to.value = v ? pre + v : pre.replace(/\s*\/\s*$/, ""); }
+  cbxClose(); if (to !== inp) closePop();
+  if (to.dataset.cbx) { CBX.quiet = true; to.dispatchEvent(new Event("input", { bubbles: true })); CBX.quiet = false; }
+  to.dispatchEvent(new Event("change", { bubbles: true })); cbxDone(to);
+}
+const cbxTarget = (inp) => (PK && PK.orig && inp.closest("#pop") ? PK.orig : inp);
+function cbxKeep(inp) {
+  const to = cbxTarget(inp); if (to !== inp) to.value = inp.value;
+  cbxClose(); if (to !== inp) closePop(); to.dispatchEvent(new Event("change", { bubbles: true }));
+}
+function cbxOpen(inp) {
+  const ev = D.events[+inp.dataset.ev], it = ev && inp.dataset.i != null ? ev.items[+inp.dataset.i] : null, lb = inp.closest("label");
+  const title = inp.getAttribute("aria-label") || (lb && lb.querySelector("span") ? lb.querySelector("span").textContent : "") || "Выбор";
+  const sub = [it && it.kind === "song" ? it.name : "", ev ? dLong(ev.date) : ""].filter(Boolean).join(" · ");
+  const data = Object.entries(inp.dataset).filter(([k]) => k !== "picked").map(([k, v]) => ` data-${k.replace(/[A-Z]/g, (c) => "-" + c.toLowerCase())}="${esc(v)}"`).join("");
+  popover(inp, `<input class="pop-q cbx" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-label="${esc(title)}"${data} value="${esc(inp.value)}" placeholder="${esc(inp.placeholder && inp.placeholder !== "—" ? inp.placeholder : "Начни вводить")}" autocomplete="off" autocapitalize="${esc(inp.getAttribute("autocapitalize") || "sentences")}" spellcheck="false">`,
+    (el) => { PK.orig = inp; el.querySelector("input").focus(); }, { title, sub });
 }
 const cbxDone = (inp) => { if (!FINE && inp.isConnected && document.activeElement === inp && !inp.closest(".sheet")) inp.blur(); };
-document.addEventListener("focusin", (e) => { if (e.target.matches && e.target.matches("input.cbx")) { CBX.inp = e.target; CBX.typed = false; e.target.select(); cbxDraw(); } });
-document.addEventListener("focusout", (e) => { if (e.target === CBX.inp) cbxClose(); });
+document.addEventListener("focusin", (e) => {
+  if (!e.target.matches || !e.target.matches("input.cbx")) return;
+  if (!FINE && !e.target.closest("#pop")) return cbxOpen(e.target);
+  CBX.inp = e.target; CBX.typed = false; e.target.select(); cbxDraw();
+});
+document.addEventListener("focusout", (e) => { if (e.target === CBX.inp && !e.target.closest("#pop")) cbxClose(); });
+if (!FINE) {
+  let tap = null;
+  document.addEventListener("touchstart", (e) => { const t = e.touches[0], f = e.touches.length === 1 && e.target.closest && e.target.closest("input.cbx"); tap = f && !f.closest("#pop") && !f.disabled ? { x: t.clientX, y: t.clientY, f } : null; }, { capture: true, passive: true });
+  document.addEventListener("touchcancel", () => (tap = null), true);
+  document.addEventListener("touchend", (e) => {
+    const s = tap, t = e.changedTouches[0]; tap = null;
+    if (!s || !t || Math.hypot(t.clientX - s.x, t.clientY - s.y) > 10) return;
+    e.preventDefault(); cbxOpen(s.f);
+  }, { capture: true, passive: false });
+}
 document.addEventListener("input", (e) => { if (!CBX.quiet && e.target.matches && e.target.matches("input.cbx")) { CBX.inp = e.target; CBX.typed = true; cbxDraw(); } });
 document.addEventListener("keydown", (e) => {
   if (!e.target.matches || !e.target.matches("input.cbx")) return;
@@ -1550,8 +1592,9 @@ document.addEventListener("keydown", (e) => {
   } else if (e.key === "Enter") {
     e.preventDefault();
     if ($("#cbx") && bs[CBX.hi]) cbxPick(bs[CBX.hi].dataset.v);
-    else { cbxClose(); e.target.dispatchEvent(new Event("change", { bubbles: true })); }
-  } else if (e.key === "Escape" && $("#cbx")) { e.preventDefault(); cbxClose(); }
+    else cbxKeep(e.target);
+  } else if (e.key === "Escape" && e.target.closest("#pop.pk")) { e.preventDefault(); closePop(); }
+  else if (e.key === "Escape" && $("#cbx")) { e.preventDefault(); cbxClose(); }
 }, true);
 addEventListener("scroll", cbxPlace, true); addEventListener("resize", cbxPlace);
 if (window.visualViewport) ["resize", "scroll"].forEach((t) => visualViewport.addEventListener(t, () => { cbxPlace(); placePop(); }));
@@ -1709,7 +1752,7 @@ function grid() {
       : esc(e.extraVocals.map(showN).join(", ")), e.extraVocals.some(meIn) ? "me" : "")).join("")}</tr>` : "");
   const edit = (e) => S.admin && isOpen(e);
   const tRow = CFG.fields.time && (S.admin || evs.some((e) => e.meet || e.time || e.place)) ? `<tr>${rowLab("time", "Время, место")}${hc}${evs.map((e) => td(e, edit(e)
-    ? `<div class="tinp">${S.live ? "" : `Сбор<input type="time" value="${esc(e.meet)}" data-act="f:meet" ${A(e)}>`}Начало<input type="time" value="${esc(e.time)}" data-act="f:time" ${A(e)}>Место<input class="cbx" data-cbx="list" data-opts="places" role="combobox" aria-autocomplete="list" aria-expanded="false" autocomplete="off" spellcheck="false" value="${esc(e.place)}" placeholder="как обычно" data-act="f:place" ${A(e)}></div>`
+    ? `<div class="tinp">${S.live ? "" : `Сбор<input type="time" value="${esc(e.meet)}" data-act="f:meet" ${A(e)}>`}Начало<input type="time" value="${esc(e.time)}" data-act="f:time" ${A(e)}>Место<input class="cbx" data-cbx="list" data-opts="places" aria-label="Место" role="combobox" aria-autocomplete="list" aria-expanded="false" autocomplete="off" spellcheck="false" value="${esc(e.place)}" placeholder="как обычно" data-act="f:place" ${A(e)}></div>`
     : esc([e.meet ? "сбор " + e.meet : "", e.time ? "начало " + e.time : "", e.place].filter(Boolean).join(", ")), "txtc")).join("")}</tr>` : "";
   const dRow = CFG.fields.dress ? `<tr>${rowLab("dress", "Дресс-код")}${hc}${evs.map((e) => td(e, edit(e) ? `<textarea data-act="f:dress" ${A(e)} rows="2">${esc(e.dress)}</textarea>` : `${swatches(e.dress)}${esc(e.dress)}`, "txtc")).join("")}</tr>` : "";
   const nRow = CFG.fields.notes && (S.admin || evs.some((e) => e.note)) ? `<tr>${rowLab("note", "Пометки")}${hc}${evs.map((e) => td(e, edit(e) ? `<textarea data-act="f:note" ${A(e)} placeholder="Хор на первом, чек в 18:30, ссылки…">${esc(e.note)}</textarea>` : linkify(e.note), "txtc")).join("")}</tr>` : "";
@@ -1857,7 +1900,7 @@ function act(el, type) {
   };
   const later = (fn) => (v) => { const before = snap(); if (fn(v) === false) return; track(before); render(); };
   if (a === "kpick" && click) return keyPop(el, it.key, songInfo(it.name, it.sing, ev.date), later(setKey));
-  if (a === "bpick" && click) return bpmPop(el, it.bpm, songInfo(it.name, it.sing, ev.date), later(setBpm));
+  if (a === "bpick" && click) return bpmPop(el, it.bpm, songInfo(it.name, it.sing, ev.date), later(setBpm), { title: "Темп", sub: `${it.name} · ${dLong(ev.date)}` });
   if (a === "kset" && click) { if (setKey(el.dataset.v) === false) return; }
   else if (a === "bset" && click) { if (setBpm(el.dataset.v) === false) return; }
   else if (a === "start" && change) { const was = it.start || "—"; it.start = el.value.trim(); log(ev, `${it.name}: начинает ${was} → ${it.start || "—"}`); }
@@ -1879,7 +1922,7 @@ function act(el, type) {
       const before = snap(), old = it.name;
       Object.assign(it, { name: nm, key: "", bpm: "", meter: "", start: "", note: "", flags: [] }); fillSong(it, ev.date); delete it.auto;
       log(ev, `${it.n}. ${old} → ${nm}${it.key ? ` (${kn(it.key)})` : ""}`); track(before); render();
-    }, "Заменить на… начни вводить");
+    }, "Заменить на… начни вводить", { title: "Заменить песню", sub: `${it.name} · ${dLong(ev.date)}` });
   } else if (a === "addblock" && click) {
     if (Date.now() < (S.noClickTill || 0)) return;
     const seq = flatOf(ev), id = Math.max(...ev.blocks.map((b) => b.id)) + 1; seq.push({ h: { id, name: "", h: true } }); fromFlat(ev, seq);
@@ -2330,13 +2373,13 @@ function keyPop(anchor, cur, inf, done) {
   popover(anchor, `<div class="pop-h">${legend}</div><div class="pop-k">${row("")}</div><div class="pop-k">${row("m")}</div><div class="pop-a"><button type="button" data-v="">без тона</button></div>`,
     (p) => (p.onclick = (e) => { const b = e.target.closest("button[data-v]"); if (!b) return; closePop(); done(b.dataset.v); }));
 }
-function bpmPop(anchor, cur, inf, done) {
+function bpmPop(anchor, cur, inf, done, o) {
   const quick = [inf && inf.lib.bpm ? [inf.lib.bpm, "в базе"] : null, inf && inf.last && inf.last.bpm && inf.last.bpm !== (inf.lib.bpm || "") ? [inf.last.bpm, `прошлый раз, ${dShort(inf.last.date)}`] : null].filter(Boolean);
   popover(anchor, `${quick.length ? `<div class="pop-a qb">${quick.map(([v, l]) => `<button type="button" data-v="${v}"${v === cur ? ' aria-pressed="true"' : ""}><b>${v}</b> ${l}</button>`).join("")}</div>` : `<div class="pop-h">В базе и прошлых списках темпа нет</div>`}<div class="pop-n"><input class="pop-q" inputmode="numeric" value="${esc(cur)}" placeholder="темп" aria-label="Темп"><button class="btn" type="button" data-go="1">Готово</button></div>`, (p) => {
     const q = p.querySelector("input"), set = (v) => { closePop(); done(String(v).replace(/\D/g, "").slice(0, 3)); };
     q.focus(); q.select(); q.onkeydown = (e) => { if (e.key === "Enter") set(q.value); if (e.key === "Escape") closePop(); };
     p.onclick = (e) => { const b = e.target.closest("button"); if (!b) return; set(b.dataset.go ? q.value : b.dataset.v); };
-  });
+  }, o);
 }
 function impRow(s, n, at, iso) {
   const fl = new Set(s.flags), au = s.auto || {}, known = knownSong(s.name), like = !known && likeSong(s.name), inf = known ? songInfo(s.name, s.sing, iso) : null;
@@ -2381,18 +2424,30 @@ function impCard(t, defId, ti) {
     ${t.ev && t.ev.items.length && t.diff.length ? `<div class="imp-d"><b>Что поменяется</b><ul>${t.diff.map((d) => `<li>${esc(d)}</li>`).join("")}</ul></div>` : ""}</div>`;
 }
 const impText = (r) => r.targets.map((t) => (r.heads ? [`${dShort(t.iso)} ${WD_S[P(t.iso).wd]}${t.title ? " · " + t.title : ""}${t.session ? ` · ${t.session} сессия` : ""}`] : []).concat(bodyText(blocksFrom(t.p), t.p.items, t.p.status)).join("\n")).join("\n\n");
-function closePop() { const p = $("#pop"); if (p) p.remove(); document.removeEventListener("pointerdown", popOut, true); }
+function closePop() {
+  const p = $("#pop"); if (p) { if (p.contains(document.activeElement)) document.activeElement.blur(); p.remove(); }
+  document.removeEventListener("pointerdown", popOut, true);
+  if (PK) { const y = PK.y; PK = null; const back = () => { if (Math.abs(scrollY - y) > 1) scrollTo(scrollX, y); }; requestAnimationFrame(back); setTimeout(back, 400); }
+}
 function popOut(e) { if (!e.target.closest("#pop") && !e.target.closest("[data-pe]")) closePop(); }
-function popover(anchor, html, setup) {
+function popover(anchor, html, setup, o = {}) {
   closePop();
-  const el = document.createElement("div"); el.className = "pop"; el.id = "pop"; el.innerHTML = html; document.body.append(el);
+  const pk = !FINE && !!o.title;
+  const el = document.createElement("div"); el.className = pk ? "pop pk" : "pop"; el.id = "pop";
+  el.innerHTML = (pk ? `<div class="pk-h"><b>${esc(o.title)}${o.sub ? `<small>${esc(o.sub)}</small>` : ""}</b><button class="pk-x" type="button">Закрыть</button></div>` : "") + html;
+  document.body.append(el);
+  if (pk) {
+    PK = { y: scrollY, orig: null };
+    el.querySelector(".pk-x").addEventListener("click", (e) => { e.stopPropagation(); closePop(); });
+    el.addEventListener("touchmove", (e) => { const l = e.target.closest(".pop-l, .cbx-pop"); if (!l || l.scrollHeight <= l.clientHeight) e.preventDefault(); }, { passive: false });
+  }
   setup(el);
   POPA = anchor; placePop();
   setTimeout(() => document.addEventListener("pointerdown", popOut, true));
 }
-let POPA = null;
+let POPA = null, PK = null;
 function placePop() {
-  const el = $("#pop"); if (!el || !POPA || !POPA.isConnected) return;
+  const el = $("#pop"); if (!el || el.classList.contains("pk") || !POPA || !POPA.isConnected) return;
   const vv = window.visualViewport, top0 = vv ? vv.offsetTop : 0, bot0 = vv ? vv.offsetTop + vv.height : innerHeight;
   const r = POPA.getBoundingClientRect(), w = el.offsetWidth, h = el.offsetHeight;
   el.style.left = Math.max(8, Math.min(r.left, innerWidth - w - 8)) + "px";
@@ -2412,7 +2467,7 @@ const oftenSongs = (n) => (songNames(), SNC.often.slice(0, n));
 const songCands = (q) => search(q, songNames(), (n) => [n]);
 const songMeta = (n, iso) => { const i = songInfo(n, "", iso); return [i.key ? kn(i.key) : "", i.bpm, libId(n) ? "чарт" : ""].filter(Boolean).join(" · "); };
 const songOpt = (v, iso) => `<b>${esc(v)}</b><small>${esc(songMeta(v, iso)) || "нет в базе и в графике"}</small>`;
-function listPick(anchor, cur, cands, render1, done, ph) {
+function listPick(anchor, cur, cands, render1, done, ph, o) {
   popover(anchor, `<input class="pop-q" value="" placeholder="${esc(ph)}" spellcheck="false" autocomplete="off"><div class="pop-l"></div>`, (el) => {
     const q = el.querySelector(".pop-q"), l = el.querySelector(".pop-l");
     const draw = (first) => {
@@ -2430,7 +2485,7 @@ function listPick(anchor, cur, cands, render1, done, ph) {
       done(f && (fk.includes(norm(v)) || (lk && fk.includes(lk))) ? f.dataset.v : v); closePop();
     };
     l.onclick = (e) => { const b = e.target.closest("button"); if (b) { done(b.dataset.v); closePop(); } };
-  });
+  }, o);
 }
 function impPick(el) {
   const t = S.imp.res.targets[+el.dataset.t], s = t.p.items[+el.dataset.i], f = el.dataset.pe, au = (s.auto ||= {});
@@ -2446,10 +2501,10 @@ function impPick(el) {
   if (f === "like") return setName(el.dataset.v);
   if (f === "usual") return apply(() => { s.key = el.dataset.v; s.flags = s.flags.filter((x) => x !== "key"); delete au.key; });
   if (f === "bpmset") return apply(() => { s.bpm = el.dataset.v; s.flags = s.flags.filter((x) => x !== "bpm?"); delete au.bpm; });
-  if (f === "name" || f === "tosong") return listPick(el, s.name, songCands, (v) => { const i = songInfo(v, s.sing, t.iso); return `<b>${esc(v)}</b><small>${[i.key ? (i.lib.key ? "" : "обычно ") + i.key : "", i.bpm, libId(v) ? "чарт есть" : "без чарта"].filter(Boolean).join(" · ")}</small>`; }, setName, f === "tosong" ? "Какая песня? Начни вводить…" : `Сейчас «${s.name}» — найти другую…`);
+  if (f === "name" || f === "tosong") return listPick(el, s.name, songCands, (v) => { const i = songInfo(v, s.sing, t.iso); return `<b>${esc(v)}</b><small>${[i.key ? (i.lib.key ? "" : "обычно ") + i.key : "", i.bpm, libId(v) ? "чарт есть" : "без чарта"].filter(Boolean).join(" · ")}</small>`; }, setName, f === "tosong" ? "Какая песня? Начни вводить…" : `Сейчас «${s.name}» — найти другую…`, { title: f === "tosong" ? "Какая это песня" : "Другая песня", sub: s.name });
   if (f === "key") return keyPop(el, s.key, inf, (k) => apply(() => { s.key = k; delete au.key; }));
   if (f === "start") return popover(el, `<div class="pop-k st">${["", ...STARTS].map((x) => `<button type="button" data-v="${x}" aria-pressed="${(s.start || "") === x}">${x ? startTxt(x) : "—"}</button>`).join("")}</div>`, (p) => (p.onclick = (e) => { const b = e.target.closest("button"); if (!b) return; apply(() => { s.start = b.dataset.v; delete au.start; }); closePop(); }));
-  if (f === "bpm") return bpmPop(el, s.bpm, inf, (v) => apply(() => { s.bpm = v; s.flags = s.flags.filter((x) => x !== "bpm?"); delete au.bpm; }));
+  if (f === "bpm") return bpmPop(el, s.bpm, inf, (v) => apply(() => { s.bpm = v; s.flags = s.flags.filter((x) => x !== "bpm?"); delete au.bpm; }), { title: "Темп", sub: s.name });
   if (f === "pray" || f === "sing") {
     const extra = f === "sing" ? ["Все"] : [];
     return listPick(el, s[f], (q) => {
@@ -2457,7 +2512,7 @@ function impPick(el) {
       const all = [...new Set([...extra, ...can.map((x) => x.n), ...rest.map((x) => x.n)])], m = search(q, all, (n) => [n]);
       return (k && !m.length ? all.map((n) => [n, lev(k, norm(n).slice(0, k.length + 1))]).sort((a, b) => a[1] - b[1]).slice(0, 4).map((x) => x[0]) : m).concat(!k && s[f] ? [""] : []);
     }, (v) => (v ? `<b>${esc(v)}</b>${personOf(v, f) ? `<small>${f === "pray" ? "молитва" : "ведёт"} — ${personOf(v, f).counts[f] || 0} ${plural(personOf(v, f).counts[f] || 0, "раз", "раза", "раз")} по графику</small>` : ""}` : `<span class="muted">— никто</span>`),
-      (v) => apply(() => { s[f] = v; s.flags = s.flags.filter((x) => x !== f + "?" && x !== f); }), s[f] ? `Сейчас ${s[f]} — найти…` : f === "pray" ? "Кто молится — найти…" : "Кто ведёт — найти…");
+      (v) => apply(() => { s[f] = v; s.flags = s.flags.filter((x) => x !== f + "?" && x !== f); }), s[f] ? `Сейчас ${s[f]} — найти…` : f === "pray" ? "Кто молится — найти…" : "Кто ведёт — найти…", { title: f === "pray" ? "Молится" : "Ведёт", sub: s.name });
   }
 }
 
@@ -2688,7 +2743,7 @@ function personSheet(key) {
     const add = e.target.closest("#pn-add");
     const uns = e.target.closest("[data-uns]");
     if (uns) { const nk = uns.dataset.uns, nm = mName(nk); unscope(nk); refresh(); toast(`${nm} в этих ролях — снова как раньше`); return; }
-    if (add) listPick(add, null, cands, one, (v) => (R[v] ? setTimeout(() => rolesStep(add, v)) : done(link(v))), "Имя, как записан в графике");
+    if (add) listPick(add, null, cands, one, (v) => (R[v] ? setTimeout(() => rolesStep(add, v)) : done(link(v))), "Имя, как записан в графике", { title: "Добавить имя", sub: R[key].name });
   };
 }
 
@@ -3033,7 +3088,6 @@ function morphNode(a, b) {
   morphKids(a, b);
   if (a.nodeName === "SELECT" && sync) { const o = [...b.options].findIndex((x) => x.hasAttribute("selected")); a.selectedIndex = Math.max(0, o); }
 }
-const FINE = matchMedia("(pointer: fine)").matches;
 const typing = (t) => !!(t && t.matches && t.matches("input:not([type=checkbox]):not([type=radio]):not([type=button]):not([type=range]), textarea, select"));
 if (!FINE) {
   document.addEventListener("focusin", (e) => { if (typing(e.target)) document.body.classList.add("kb"); });
