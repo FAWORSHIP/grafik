@@ -182,6 +182,35 @@ table.gs { border-collapse: collapse; font-size: 13.5px; }
 .gs tr.nt td { white-space: normal; font-style: italic; color: var(--ink2); border-left: 0; }
 .gs tr.struck td { opacity: 0.5; } .gs tr.struck .nm { text-decoration: line-through; }
 .gs .snote { font-weight: 400; font-style: italic; color: var(--accent-text); margin-left: 6px; }
+
+.gt:not(.measure) td.stk > .cw.wide { width: var(--cw); min-width: 0; max-width: none; }
+.gt:not(.measure) td.stk .gs { --nw: 1.5em; display: block; }
+.gt:not(.measure) td.stk.edit .gs { --nw: calc(1.5em + 19px); }  
+.gt:not(.measure) td.stk .gs > tbody { display: block; }
+.gt:not(.measure) td.stk .gs tr { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 6px; }
+.gt:not(.measure) td.stk .gs td { display: block; flex: none; padding: 0; border-left: 0; }
+.gt:not(.measure) td.stk .gs tr[data-row="i"]:not(.nt) { padding: 3px 0; }
+.gt:not(.measure) td.stk .gs tr.nt, .gt:not(.measure) td.stk .gs tr.sec.hd { padding: 3px 0; }
+.gt:not(.measure) td.stk .gs :is(tr.sec, tr.nt) > td:first-child { flex: 1 1 0; min-width: 0; }
+.gt:not(.measure) td.stk .gs tr.sec:not(.hd):not(.gap) td { padding-top: 8px; }
+.gt:not(.measure) td.stk .gs tr.sec:first-child td { padding-top: 0; }
+.gt:not(.measure) td.stk .gs td.n { width: var(--nw); white-space: nowrap; }
+.gt:not(.measure) td.stk .gs td.nm { flex: 1 1 0; min-width: 0; white-space: normal; overflow-wrap: break-word; }
+.gt:not(.measure) td.stk .gs tr[data-row="i"]:not(.nt)::before { content: ""; order: 1; flex-basis: 100%; }  
+.gt:not(.measure) td.stk .gs tr[data-row="i"]:not(.nt)::after { content: ""; order: 2; width: var(--nw); }  
+.gt:not(.measure) td.stk .gs td.dt { order: 3; white-space: normal; font-size: 12.5px; color: var(--ink2); }
+.gt:not(.measure) td.stk .gs td.dt.q { color: var(--warn); }
+.gt:not(.measure) td.stk .gs td.dt.me { color: var(--accent-text); }
+.gt:not(.measure) td.stk:not(.edit) .gs td.dt:empty { display: none; }
+.gt:not(.measure) td.stk:not(.edit) .gs td.dt:not(:empty) ~ td.dt:not(:empty)::before { content: "· "; color: var(--muted); }
+.gt:not(.measure) td.stk.edit .gs td.dt { flex: 1 1 5.5em; min-width: 0; padding-top: 4px; }
+.gt:not(.measure) td.stk.edit .gs td.dt input { width: 100%; }
+.gt:not(.measure) td.stk .gs input.ni { min-width: 0; }
+.gt:not(.measure) td.stk.edit .gs .nmw { display: flex; align-items: baseline; gap: 2px; }  
+.gt:not(.measure) td.stk.edit .gs .nmw .swapb { min-width: 0; overflow-wrap: break-word; }
+.gt:not(.measure) td.stk.edit .gs .nmw .mx { flex: none; }
+.gt:not(.measure) td.stk.edit .gs td.nm input.ni { margin-top: 3px; }
+.gt:not(.measure) td.stk.edit .gs td.nm br { display: none; }  
 .gs select, .gs input, .cw select, .cw input, .cw textarea { border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--ink); padding: 3px 5px; font-size: 13px; font-weight: 700; min-width: 0; }
 .cw select, .cw textarea, .cw input.full { width: 100%; }
 .cw .gs select { width: auto; max-width: 9em; }
@@ -1461,7 +1490,7 @@ const DEF_CFG = {
 let CFG = store.get("cfg", null) || JSON.parse(JSON.stringify(DEF_CFG));
 const saveCfg = () => store.set("cfg", CFG);
 
-const VERSION = "0.14.0";
+const VERSION = "0.15.0";
 const FINE = matchMedia("(pointer: fine)").matches;
 const Q = new URLSearchParams(location.search);
 const S = { live: false, view: Q.get("view") || store.get("view", "grid"), rf: "all", rq: "", showOff: false, me: Q.get("me") ?? store.get("me", ""), admin: Q.get("admin") === "1", month: Q.get("m") || "", hidePast: false, open: new Set(), allOpen: Q.get("open") === "all", changes: [], noteOpen: {} };
@@ -1843,21 +1872,21 @@ function songsFull(e) {
       const fl = new Set(i.flags), si = live(e).indexOf(i);
       const open = S.noteOpen[e.id + ":" + idx] || i.note;
       const name = adm
-        ? `<button class="swapb" type="button" data-act="swap" ${A(e)} data-i="${idx}" title="Заменить на другую песню">${esc(i.name)}</button> <button class="mx" type="button" title="Пометка к песне" data-act="noteopen" ${A(e)} data-i="${idx}">${I.pen}</button>${open ? `<br><input class="ni" value="${esc(i.note || "")}" placeholder="вступаем вместе, громко…" data-act="snote" ${A(e)} data-i="${idx}">` : ""}`
+        ? `<span class="nmw"><button class="swapb" type="button" data-act="swap" ${A(e)} data-i="${idx}" title="Заменить на другую песню">${esc(i.name)}</button> <button class="mx" type="button" title="Пометка к песне" data-act="noteopen" ${A(e)} data-i="${idx}">${I.pen}</button></span>${open ? `<br><input class="ni" value="${esc(i.note || "")}" placeholder="вступаем вместе, громко…" data-act="snote" ${A(e)} data-i="${idx}">` : ""}`
         : `<a href="${esc(setUrl(e, si < 0 ? 0 : si + 1))}" target="_blank" rel="noopener" title="${libId(i.name) ? "Открыть чарт в ChartSet" : "Чарта пока нет — откроется название"}">${esc(i.name)}</a>${fl.has("new") ? ' <span class="pill ok">новая</span>' : ""}${i.note ? `<span class="snote">${esc(i.note)}</span>` : ""}`;
       const inf = adm ? songInfo(i.name, i.sing, e.date) : null;
       const hintB = (h, act) => (h ? `<button class="hintk" type="button" data-act="${act}" ${A(e)} data-i="${idx}" data-v="${esc(h.v)}" title="${esc(h.title)}">${esc(h.label)}</button>` : "");
       const key = !showKey ? "" : adm
-        ? `<td><button class="pe" type="button" data-act="kpick" ${A(e)} data-i="${idx}" title="Тон">${i.key ? `<span class="kc${fl.has("key") ? " chg" : ""}">${keyHTML(kn(i.key))}</span>` : '<span class="pill warn">нет тона</span>'}</button>${hintB(keyHintOf(i, inf), "kset")}</td>`
-        : `<td><span class="kc${fl.has("key") ? " chg" : ""}" title="${fl.has("key") ? "Тон изменён (‼️)" : ""}">${keyHTML(kn(i.key))}</span></td>`;
+        ? `<td class="k"><button class="pe" type="button" data-act="kpick" ${A(e)} data-i="${idx}" title="Тон">${i.key ? `<span class="kc${fl.has("key") ? " chg" : ""}">${keyHTML(kn(i.key))}</span>` : '<span class="pill warn">нет тона</span>'}</button>${hintB(keyHintOf(i, inf), "kset")}</td>`
+        : `<td class="k"><span class="kc${fl.has("key") ? " chg" : ""}" title="${fl.has("key") ? "Тон изменён (‼️)" : ""}">${keyHTML(kn(i.key))}</span></td>`;
       const c = cols.map(([k]) => {
         if (k === "bpm") return adm ? `<td class="bp"><button class="pe${fl.has("bpm?") ? " unk" : ""}" type="button" data-act="bpick" ${A(e)} data-i="${idx}" title="Темп">${i.bpm ? esc(i.bpm) + (fl.has("bpm?") ? "?" : "") : '<span class="ph">темп</span>'}${i.meter ? ` <span class="mt">${esc(i.meter)}</span>` : ""}</button>${hintB(bpmHintOf(i, inf), "bset")}</td>`
           : `<td class="bp${fl.has("bpm?") ? " q" : ""}">${esc(i.bpm)}${fl.has("bpm?") ? "?" : ""}${i.meter ? ` <span class="mt">${esc(i.meter)}</span>` : ""}</td>`;
-        if (k === "start") return adm ? `<td><input class="sti cbx" data-cbx="list" data-opts="start" role="combobox" aria-autocomplete="list" aria-expanded="false" autocomplete="off" spellcheck="false" aria-label="Кто начинает" value="${esc(i.start)}" placeholder="начинает" data-act="start" ${A(e)} data-i="${idx}"></td>` : `<td>${startTxt(i.start)}</td>`;
-        if (k === "pray" || k === "sing") return adm ? `<td>${whoSel(e, idx, k, i[k])}</td>`
-          : `<td class="${fl.has(k) || fl.has(k + "?") ? "q" : isMe(i[k], k) ? "me" : ""}">${i[k] ? (k === "pray" ? "🙏 " : "🎤 ") + esc(showN(i[k], k)) : ""}</td>`;
+        if (k === "start") return adm ? `<td class="dt"><input class="sti cbx" data-cbx="list" data-opts="start" role="combobox" aria-autocomplete="list" aria-expanded="false" autocomplete="off" spellcheck="false" aria-label="Кто начинает" value="${esc(i.start)}" placeholder="начинает" data-act="start" ${A(e)} data-i="${idx}"></td>` : `<td class="dt">${startTxt(i.start)}</td>`;
+        if (k === "pray" || k === "sing") return adm ? `<td class="dt">${whoSel(e, idx, k, i[k])}</td>`
+          : `<td class="dt${fl.has(k) || fl.has(k + "?") ? " q" : isMe(i[k], k) ? " me" : ""}">${i[k] ? (k === "pray" ? "🙏 " : "🎤 ") + esc(showN(i[k], k)) : ""}</td>`;
         const v = (i.extra || {})[k.slice(2)] || "";
-        return adm ? `<td><input class="sti" value="${esc(v)}" placeholder="${esc(CFG.songCustom.find((x) => "x:" + x.id === k)?.name || "")}" data-act="sx" data-x="${k.slice(2)}" ${A(e)} data-i="${idx}"></td>` : `<td>${esc(v)}</td>`;
+        return adm ? `<td class="dt"><input class="sti" value="${esc(v)}" placeholder="${esc(CFG.songCustom.find((x) => "x:" + x.id === k)?.name || "")}" data-act="sx" data-x="${k.slice(2)}" ${A(e)} data-i="${idx}"></td>` : `<td class="dt">${esc(v)}</td>`;
       }).join("");
       rows += `<tr class="${fl.has("struck") ? "struck" : ""}" ${dr}><td class="n">${gr}${i.n}</td><td class="nm">${name}</td>${key}${c}${tl}</tr>`;
     });
@@ -3550,17 +3579,22 @@ function fitCw() {
   const rows = [...t.querySelectorAll(":scope > thead > tr, :scope > tbody > tr")], sr = rows.find((r) => r.querySelector("td .cs")) || rows.find((r) => r.querySelector("td:not(.hidc)"));
   if (!sr) return;
   const W = (el) => el.getBoundingClientRect().width, n = sr.children.length, cells = [...sr.children];
-  const comp = cells.map((c, i) => [c, i]).filter(([c]) => c.tagName === "TD" && !c.classList.contains("hidc") && !c.classList.contains("open") && c.firstElementChild);
-  if (!comp.length) return;
-  const min = innerWidth <= 520 ? 140 : 164, pad = W(comp[0][0]) - W(comp[0][0].firstElementChild);
+  const cols = cells.map((c, i) => [c, i]).filter(([c]) => c.tagName === "TD" && !c.classList.contains("hidc") && c.firstElementChild);
+  if (!cols.length) return;
+  const min = innerWidth <= 520 ? 140 : 164, pad = W(cols[0][0]) - W(cols[0][0].firstElementChild);
   const cap = Math.max(min, Math.floor(g.clientWidth - W(cells[0]) - pad - 28));
-  const lis = comp.map(([c]) => [...c.querySelectorAll(".cs > li:not(.sec):not(.nt):not(.gapl)")]);
+  const lis = cols.map(([c]) => (c.classList.contains("open") ? null : [...c.querySelectorAll(".cs > li:not(.sec):not(.nt):not(.gapl)")]));
   t.classList.add("measure");
-  const need = lis.map((xs) => xs.reduce((m, li) => Math.max(m, Math.ceil(W(li))), 0));
+  const need = cols.map(([c], k) => (lis[k] ? lis[k].reduce((m, li) => Math.max(m, Math.ceil(W(li))), 0) : Math.ceil(W(c) - pad)));
   t.classList.remove("measure");
-  comp.forEach(([, i], k) => {
-    const w = Math.min(cap, Math.max(min, need[k])) + "px";
-    rows.forEach((r) => { if (r.children.length === n && r.children[i].style.getPropertyValue("--cw") !== w) r.children[i].style.setProperty("--cw", w); });
+  cols.forEach(([, i], k) => {
+    const stk = !lis[k] && need[k] > cap, w = lis[k] ? Math.min(cap, Math.max(min, need[k])) + "px" : stk ? cap + "px" : "";
+    rows.forEach((r) => {
+      if (r.children.length !== n) return;
+      const x = r.children[i];
+      if (x.style.getPropertyValue("--cw") !== w) { if (w) x.style.setProperty("--cw", w); else { x.style.removeProperty("--cw"); if (!x.getAttribute("style")) x.removeAttribute("style"); } }
+      if (!lis[k] && x.tagName === "TD" && x.classList.contains("stk") !== stk) x.classList.toggle("stk", stk);
+    });
   });
 }
 addEventListener("resize", () => requestAnimationFrame(fitCw));
