@@ -1463,9 +1463,16 @@ FW.libFromDrive = function (root, subs, norm) {
     for (const k of [norm(stem), fk]) if (k && !(k in lib)) lib[k] = tid(f);
     if (fk && /\p{L}/u.test(folder) && !(fk in names)) names[fk] = folder;
   };
-  root.filter(cho).forEach((f) => add(f, ""));
-  root.filter(isDir).forEach((d) => (subs[tid(d)] || []).filter(cho).forEach((f) => add(f, clean(d.name))));
-  return { lib, names };
+  const mods = {};
+  const addAll = (fs, folder) => fs.filter(cho).forEach((f) => { add(f, folder); if (f.modifiedTime) mods[tid(f)] = f.modifiedTime; });
+  addAll(root, "");
+  root.filter(isDir).forEach((d) => addAll(subs[tid(d)] || [], clean(d.name)));
+  return { lib, names, mods };
+};
+FW.choHead = function (text) {
+  const get = (k) => ((new RegExp(`^\\s*\\{\\s*${k}\\s*:\\s*([^}]*)\\}`, "mi").exec(text || "") || [])[1] || "").trim();
+  const key = get("key"), bpm = get("tempo"), time = get("time");
+  return { key: /^[A-H](?:#|b)?m?$/.test(key) ? key : "", bpm: /^\d{2,3}$/.test(bpm) ? bpm : "", meter: /^\d{1,2}\/\d{1,2}$/.test(time) && time !== "4/4" ? time : "" };
 };
 
 if (typeof module === "object" && module.exports) module.exports = FW; else G.FW = FW;
@@ -1508,7 +1515,7 @@ const DEF_CFG = {
 let CFG = store.get("cfg", null) || JSON.parse(JSON.stringify(DEF_CFG));
 const saveCfg = () => store.set("cfg", CFG);
 
-const VERSION = "0.16.0";
+const VERSION = "0.17.0";
 const FINE = matchMedia("(pointer: fine)").matches;
 const Q = new URLSearchParams(location.search);
 const S = { live: false, view: Q.get("view") || store.get("view", "grid"), rf: "all", rq: "", showOff: false, me: Q.get("me") ?? store.get("me", ""), admin: Q.get("admin") === "1", month: Q.get("m") || "", hidePast: false, open: new Set(), allOpen: Q.get("open") === "all", changes: [], noteOpen: {} };
@@ -2171,7 +2178,7 @@ function act(el, type) {
     const b = byKey[norm(name)];
     const s = fillSong({ kind: "song", n: 0, name: known || name, key: "", bpm: "", meter: "", start: "", pray: "", sing: "", flags: [], extra: {}, group: ev.blocks[ev.blocks.length - 1].id }, ev.date); delete s.auto;
     ev.items.push(s); renumber(ev); log(ev, `+ ${s.name}${s.key ? ` (${s.key})` : ""}`);
-    if (!b && !s.key) toast("Песни нет ни в базе, ни в прошлых списках — добавлена без тона и темпа");
+    if (!b && !s.key) toast("Песни нет ни в базе, ни в чартах, ни в прошлых списках — добавлена без тона и темпа");
     if (matchMedia("(pointer: fine)").matches) S.focusAdd = ev.id;
   } else if (a === "swap" && click) {
     return listPick(el, it.name, songCands, (v) => songOpt(v, ev.date), (v) => {
@@ -2571,10 +2578,14 @@ function history() {
 const LIB_NAMES = (SNAP && SNAP.libNames) || {};
 const DRIVE_KEY = "AIzaSyBNtYHwkI9bE6d7V0TnHEMMbKZCoSr49As";
 const LIB_ID = (() => { const v = Q.get("lib"), id = v && (/[-\w]{25,}/.exec(v) || [])[0]; if (id) store.set("lib", id); return id || store.get("lib", ""); })();
+let LIB_MODS = {};
 function libSet(x) {
   Object.keys(LIB).forEach((k) => delete LIB[k]); Object.assign(LIB, x.lib);
   Object.keys(LIB_NAMES).forEach((k) => delete LIB_NAMES[k]); Object.assign(LIB_NAMES, x.names);
+  LIB_MODS = x.mods || {};
 }
+let CH = store.get("libh", {});
+const chartHead = (k) => { const id = LIB[k]; return (id && CH[id]) || {}; };
 let LIB_SRC = SNAP && SNAP.library ? "снимка" : "";
 const libOn = () => !!LIB_SRC;
 { const c = LIB_ID && store.get("libc", null); if (c && c.id === LIB_ID && c.lib) { libSet(c); LIB_SRC = "копии на устройстве"; } }
@@ -2586,10 +2597,14 @@ function songInfo(name, sing, before = "9999") {
   recs.sort((x, y) => (x.date < y.date ? 1 : -1));
   const last = (f) => (recs.find((r) => r[f]) || {})[f] || "", u = usualKey({ name, sing, key: "x" });
   const lib = b ? { key: okKey(b.key), bpm: okBpm(b.bpm), start: START_RE.test(b.start || "") ? b.start : "" } : { key: "", bpm: "", start: "" };
+  const ch = chartHead(k); lib.kw = lib.bw = "в базе";
+  if (!lib.key && okKey(ch.key)) { lib.key = okKey(ch.key); lib.kw = "в чарте"; }
+  if (!lib.bpm && okBpm(ch.bpm)) { lib.bpm = okBpm(ch.bpm); lib.bw = "в чарте"; }
+  const from = (w) => (w === "в чарте" ? "из чарта" : "из базы");
   const lastRec = recs.find((r) => r.bpm || r.key) || null;
   return { lib, usual: u, last: lastRec, n: recs.length,
-    key: (u && u.by ? u.key : "") || lib.key || (u ? u.key : "") || last("key"), keySrc: u && u.by ? `обычно, когда ведёт ${u.by}` : lib.key ? "из базы" : u ? "обычно" : last("key") ? "прошлый раз" : "",
-    bpm: lib.bpm || last("bpm"), bpmSrc: lib.bpm ? "из базы" : last("bpm") ? "прошлый раз" : "", start: lib.start || last("start"), meter: last("meter") };
+    key: (u && u.by ? u.key : "") || lib.key || (u ? u.key : "") || last("key"), keySrc: u && u.by ? `обычно, когда ведёт ${u.by}` : lib.key ? from(lib.kw) : u ? "обычно" : last("key") ? "прошлый раз" : "",
+    bpm: lib.bpm || last("bpm"), bpmSrc: lib.bpm ? from(lib.bw) : last("bpm") ? "прошлый раз" : "", start: lib.start || last("start"), meter: last("meter") || (lib.bw === "в чарте" ? ch.meter || "" : "") };
 }
 function fillSong(s, before, only) {
   const inf = songInfo(s.name, s.sing, before); s.auto = s.auto || {};
@@ -2773,27 +2788,27 @@ function keyHintOf(s, inf) {
   if (!inf) return null;
   const libK = inf.lib.key, uK = inf.usual;
   if (!s.key && inf.key) return { v: inf.key, label: `${inf.keySrc} ${inf.key}`, title: "Поставить" };
-  if (s.key && libK && keyId(libK) !== keyId(s.key)) return { v: libK, label: `в базе ${libK}`, title: "Поставить тон из базы" };
+  if (s.key && libK && keyId(libK) !== keyId(s.key)) return { v: libK, label: `${inf.lib.kw} ${libK}`, title: inf.lib.kw === "в чарте" ? "Поставить тон из чарта" : "Поставить тон из базы" };
   if (s.key && uK && keyId(uK.key) !== keyId(s.key)) return { v: uK.key, label: `обычно ${uK.key}${uK.by ? " · " + uK.by : ""}`, title: `${uK.n} ${plural(uK.n, "раз", "раза", "раз")} по графику${uK.by ? ", когда ведёт " + uK.by : ""} — поставить` };
   return null;
 }
 function bpmHintOf(s, inf) {
   if (!inf) return null;
   if (!s.bpm && inf.bpm) return { v: inf.bpm, label: `${inf.bpmSrc} ${inf.bpm}`, title: "Поставить" };
-  if (s.bpm && inf.lib.bpm && inf.lib.bpm !== s.bpm) return { v: inf.lib.bpm, label: `в базе ${inf.lib.bpm}`, title: "Поставить темп из базы" };
+  if (s.bpm && inf.lib.bpm && inf.lib.bpm !== s.bpm) return { v: inf.lib.bpm, label: `${inf.lib.bw} ${inf.lib.bpm}`, title: inf.lib.bw === "в чарте" ? "Поставить темп из чарта" : "Поставить темп из базы" };
   return null;
 }
 function keyPop(anchor, cur, inf, done) {
   const lib = inf && inf.lib.key, us = inf && inf.usual; cur = kn(cur);
   const mark = (k) => [cur && keyId(k) === keyId(cur) ? ' aria-pressed="true"' : "", ` class="${[lib && keyId(k) === keyId(lib) ? "lib" : "", us && keyId(k) === keyId(us.key) ? "us" : ""].filter(Boolean).join(" ")}"`].join("");
   const row = (m) => KEYS.filter((k) => k !== "H").map((k) => `<button type="button" data-v="${k + m}"${mark(k + m)}>${keyHTML(k + m)}</button>`).join("");
-  const legend = [cur ? `сейчас <b>${keyHTML(cur)}</b>` : "", lib ? `<span class="lg lib"></span>в базе <b>${keyHTML(lib)}</b>` : "", us ? `<span class="lg us"></span>обычно <b>${keyHTML(us.key)}</b>${us.by ? ", когда ведёт " + esc(us.by) : ""} · ${us.n} ${plural(us.n, "раз", "раза", "раз")}` : "", !lib && !us ? "в базе и прошлых списках тона нет" : ""].filter(Boolean).map((x) => `<span>${x}</span>`).join("");
+  const legend = [cur ? `сейчас <b>${keyHTML(cur)}</b>` : "", lib ? `<span class="lg lib"></span>${inf.lib.kw} <b>${keyHTML(lib)}</b>` : "", us ? `<span class="lg us"></span>обычно <b>${keyHTML(us.key)}</b>${us.by ? ", когда ведёт " + esc(us.by) : ""} · ${us.n} ${plural(us.n, "раз", "раза", "раз")}` : "", !lib && !us ? "в базе, чарте и прошлых списках тона нет" : ""].filter(Boolean).map((x) => `<span>${x}</span>`).join("");
   popover(anchor, `<div class="pop-h">${legend}</div><div class="pop-k">${row("")}</div><div class="pop-k">${row("m")}</div><div class="pop-a"><button type="button" data-v="">без тона</button></div>`,
     (p) => (p.onclick = (e) => { const b = e.target.closest("button[data-v]"); if (!b) return; closePop(); done(b.dataset.v); }));
 }
 function bpmPop(anchor, cur, inf, done, o) {
-  const quick = [inf && inf.lib.bpm ? [inf.lib.bpm, "в базе"] : null, inf && inf.last && inf.last.bpm && inf.last.bpm !== (inf.lib.bpm || "") ? [inf.last.bpm, `прошлый раз, ${dShort(inf.last.date)}`] : null].filter(Boolean);
-  popover(anchor, `${quick.length ? `<div class="pop-a qb">${quick.map(([v, l]) => `<button type="button" data-v="${v}"${v === cur ? ' aria-pressed="true"' : ""}><b>${v}</b> ${l}</button>`).join("")}</div>` : `<div class="pop-h">В базе и прошлых списках темпа нет</div>`}<div class="pop-n"><input class="pop-q" inputmode="numeric" value="${esc(cur)}" placeholder="темп" aria-label="Темп"><button class="btn" type="button" data-go="1">Готово</button></div>`, (p) => {
+  const quick = [inf && inf.lib.bpm ? [inf.lib.bpm, inf.lib.bw] : null, inf && inf.last && inf.last.bpm && inf.last.bpm !== (inf.lib.bpm || "") ? [inf.last.bpm, `прошлый раз, ${dShort(inf.last.date)}`] : null].filter(Boolean);
+  popover(anchor, `${quick.length ? `<div class="pop-a qb">${quick.map(([v, l]) => `<button type="button" data-v="${v}"${v === cur ? ' aria-pressed="true"' : ""}><b>${v}</b> ${l}</button>`).join("")}</div>` : `<div class="pop-h">В базе, чарте и прошлых списках темпа нет</div>`}<div class="pop-n"><input class="pop-q" inputmode="numeric" value="${esc(cur)}" placeholder="темп" aria-label="Темп"><button class="btn" type="button" data-go="1">Готово</button></div>`, (p) => {
     const q = p.querySelector("input"), set = (v) => { closePop(); done(String(v).replace(/\D/g, "").slice(0, 3)); };
     q.focus(); q.select(); q.onkeydown = (e) => { if (e.key === "Enter") set(q.value); if (e.key === "Escape") closePop(); };
     p.onclick = (e) => { const b = e.target.closest("button"); if (!b) return; set(b.dataset.go ? q.value : b.dataset.v); };
@@ -2837,7 +2852,7 @@ function impCard(t, defId, ti) {
     noKey ? `Без тона: ${noKey}.` : "", unk ? `Нет в библиотеке: ${unk} — нажми на название и выбери из библиотеки.` : "", badP.length ? `Нет в составе: ${badP.map(esc).join(", ")} — опечатка или новый человек.` : ""].filter(Boolean);
   return `<div class="imp-card"><div class="imp-h">${where}${st}${p.status ? `<span class="pill warn">${esc(p.status)}</span>` : ""}<span class="muted" style="font-size:13px">${sg.length} ${plural(sg.length, "песня", "песни", "песен")}</span></div>
     ${rows ? `<table class="gs imp-t">${rows}</table>` : ""}${warn.length ? `<div class="imp-w">${warn.map((w) => `<span>⚠ ${w}</span>`).join("")}</div>` : ""}
-    ${sg.some((x) => x.auto && Object.keys(x.auto).length) ? `<div class="imp-auto">Курсивом — подставлено из базы и прошлых списков; нажми, чтобы поменять. Уйдёт в график вместе со списком.</div>` : ""}
+    ${sg.some((x) => x.auto && Object.keys(x.auto).length) ? `<div class="imp-auto">Курсивом — подставлено из базы, чартов и прошлых списков; нажми, чтобы поменять. Уйдёт в график вместе со списком.</div>` : ""}
     ${p.skipped.length ? `<div class="muted" style="font-size:12.5px;margin-top:6px">Пропущено как слова ИИ: ${p.skipped.map((x) => "«" + esc(x.length > 60 ? x.slice(0, 60) + "…" : x) + "»").join(", ")}</div>` : ""}
     ${t.ev && t.ev.items.length && t.diff.length ? `<div class="imp-d"><b>Что поменяется</b><ul>${t.diff.map((d) => `<li>${esc(d)}</li>`).join("")}</ul></div>` : ""}</div>`;
 }
@@ -3337,7 +3352,7 @@ function derive() {
   R = buildRoster(); PEOPLE = peopleList(); history();
 }
 const sigOf = () => JSON.stringify(D.events.filter((e) => !e.deleted).map((e) => [ek(e), FW.groups(e)]));
-const driveList = (id) => "/drive/v3/files?" + new URLSearchParams({ q: `'${id}' in parents and trashed = false`, fields: "files(id,name,mimeType,shortcutDetails)", pageSize: 1000, supportsAllDrives: true, includeItemsFromAllDrives: true });
+const driveList = (id) => "/drive/v3/files?" + new URLSearchParams({ q: `'${id}' in parents and trashed = false`, fields: "files(id,name,mimeType,modifiedTime,shortcutDetails)", pageSize: 1000, supportsAllDrives: true, includeItemsFromAllDrives: true });
 async function driveBatch(paths) {
   const b = "fw" + Math.random().toString(36).slice(2), out = paths.map(() => null);
   const body = paths.map((p, i) => `--${b}\r\nContent-Type: application/http\r\nContent-ID: <${i}>\r\n\r\nGET ${p}\r\n\r\n`).join("") + `--${b}--`;
@@ -3370,6 +3385,33 @@ async function libLoad() {
     if (!$("#layer").innerHTML && !typing(document.activeElement)) render();
   } catch (e) { console.warn("Чарты с Диска не загрузились:", e); }
   finally { libBusy = false; }
+  chartsLoad();
+}
+let chBusy = false, chAgain = false;
+async function chartsLoad() {
+  if (!libOn() || LIB_SRC === "снимка" || !HTTP || MOCK) return;
+  if (SHEET_ID && !S.live) return;
+  if (chBusy) { chAgain = true; return; }
+  chBusy = true; chAgain = false;
+  try {
+    const ids = new Set(Object.values(LIB));
+    Object.keys(CH).forEach((id) => { if (!ids.has(id)) delete CH[id]; });
+    const need = [...new Set(Object.entries(LIB).filter(([k, id]) => {
+      const b = byKey[k];
+      if (b && okKey(b.key) && okBpm(b.bpm)) return false;
+      return !CH[id] || (LIB_MODS[id] && CH[id].mod !== LIB_MODS[id]);
+    }).map(([, id]) => id))];
+    let got = 0;
+    for (let i = 0; i < need.length; i += 6) await Promise.all(need.slice(i, i + 6).map(async (id) => {
+      try {
+        const r = await fetch(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(id)}?alt=media&supportsAllDrives=true&key=${DRIVE_KEY}`);
+        if (!r.ok) return;
+        CH[id] = { mod: LIB_MODS[id] || "", ...FW.choHead(await r.text()) }; got++;
+      } catch {}
+    }));
+    store.set("libh", CH);
+    if (got && !$("#layer").innerHTML && !typing(document.activeElement)) render();
+  } finally { chBusy = false; if (chAgain) chartsLoad(); }
 }
 async function loadLive(quiet) {
   libLoad();
@@ -3379,7 +3421,7 @@ async function loadLive(quiet) {
     const book = await API.book(), was = S.live ? sigOf() : "", m = S.month, open = new Set(S.open);
     const txt = (b) => JSON.stringify(b.sheets.map((x) => [x.name, x.rows]));
     if (S.live && pending().n) { S.stale = txt(book) !== txt(BOOK); S.loadedAt = Date.now(); return; }
-    S.live = true; setBook(book);
+    S.live = true; setBook(book); chartsLoad();
     S.loadedAt = Date.now(); S.loadErr = ""; S.stale = false;
     if (was) { S.month = m; S.open = open; if (was !== sigOf()) toast("Обновлено из таблицы"); }
     else { if (!Q.get("m")) S.month = curMonth(); S.toNext = S.month === curMonth(); const n = nextEv(); if (n) S.open.add(ek(n)); }
