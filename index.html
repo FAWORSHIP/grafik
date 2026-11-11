@@ -645,13 +645,14 @@ html.lock { overflow: hidden; }
 .pk-p .cbx-g { padding: 14px 10px 4px; font-size: 12.5px; }
 .pk-p .pop-a.qb button { padding: 10px 12px; font-size: 15px; }
 
-.rlb { display: inline-flex; align-items: center; gap: inherit; border: 0; background: none; padding: 0; margin: 0; font: inherit; color: inherit; text-align: left; cursor: pointer; border-radius: 6px; }
+.rlb { display: inline-flex; align-items: center; gap: 7px; border: 0; background: none; padding: 0; margin: 0; font: inherit; color: inherit; text-align: left; cursor: pointer; border-radius: 6px; }
 .rlb:hover .rn { text-decoration: underline; text-decoration-color: var(--box); }
 .remo { font-size: 16px; line-height: 1; min-width: 18px; text-align: center; }
 .rsn { display: none; font-size: 10.5px; font-weight: 700; line-height: 1.1; color: var(--muted); }  
 tr.addr .addr-i { display: inline-block; min-width: 18px; text-align: center; color: var(--accent-text); font-size: 18px; font-weight: 700; line-height: 1; }
 tr.addr .rlb .rn { color: var(--accent-text); }
 .emos { display: flex; flex-wrap: wrap; gap: 6px; }
+.cfg-fix { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-top: 8px; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--accent); font-size: 14px; }
 .emos .emo { width: 40px; height: 40px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg2); font-size: 20px; padding: 0; }
 .emos .emo[aria-pressed="true"] { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
 .emo-in { margin-top: 6px; width: 8rem; padding: 8px 10px; border-radius: 9px; border: 1px solid var(--line); background: var(--bg2); color: var(--ink); font-size: 16px; }
@@ -1455,7 +1456,7 @@ const DEF_CFG = {
 let CFG = store.get("cfg", null) || JSON.parse(JSON.stringify(DEF_CFG));
 const saveCfg = () => store.set("cfg", CFG);
 
-const VERSION = "0.12.0";
+const VERSION = "0.13.0";
 const FINE = matchMedia("(pointer: fine)").matches;
 const Q = new URLSearchParams(location.search);
 const S = { live: false, view: Q.get("view") || store.get("view", "grid"), rf: "all", rq: "", showOff: false, me: Q.get("me") ?? store.get("me", ""), admin: Q.get("admin") === "1", month: Q.get("m") || "", hidePast: false, open: new Set(), allOpen: Q.get("open") === "all", changes: [], noteOpen: {} };
@@ -1949,8 +1950,8 @@ function grid() {
     if (S.admin) return td(e, personSel(e, x.id, v ? v.name : "", "voc"));
     return td(e, v ? esc(showN(v.name, "voc")) : "", noneEv(e) ? "none" : v && meIn(v.name, "voc") ? "me" : "");
   }).join("")}</tr>`; }).join("") + addRow("mic", "Микрофон") +
-    (S.admin || evs.some((e) => e.extraVocals.length) ? `<tr><th class="rl" title="Голос без своего микрофона"><span>${mic("")}</span></th>${hc}${evs.map((e) => td(e, S.admin && isOpen(e)
-      ? `<div class="vchips">${e.extraVocals.map((n, k) => `<span class="vchip">${esc(n)}<button class="mx" type="button" data-act="xvdel" ${A(e)} data-i="${k}">×</button></span>`).join("")}</div><input class="full cbx" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-label="Добавить голос" data-ab="voc" autocomplete="off" spellcheck="false" placeholder="+ голос" data-act="xvadd" ${A(e)} style="margin-top:4px">`
+    (evs.some((e) => e.extraVocals.length) ? `<tr><th class="rl" title="Голос без своего микрофона"><span>${mic("")}<span class="rn">Без микрофона</span></span></th>${hc}${evs.map((e) => td(e, S.admin && isOpen(e) && e.extraVocals.length
+      ? `<div class="vchips">${e.extraVocals.map((n, k) => `<span class="vchip">${esc(n)}<button class="mx" type="button" data-act="xvdel" ${A(e)} data-i="${k}" aria-label="Снять ${esc(n)}">×</button></span>`).join("")}</div>`
       : esc(e.extraVocals.map(showN).join(", ")), e.extraVocals.some(meIn) ? "me" : "")).join("")}</tr>` : "");
   const edit = (e) => S.admin && isOpen(e);
   const tRow = CFG.fields.time && (S.admin || evs.some((e) => e.meet || e.time || e.place)) ? `<tr>${rowLab("time", "Время, место")}${hc}${evs.map((e) => td(e, edit(e)
@@ -2163,7 +2164,10 @@ function changesHTML() {
 function changesSheet() {
   openSheet("Изменения", `<p class="muted shint">Что поменяли на странице с последнего сохранения.</p>${changesHTML() || '<p class="muted">Пока ничего</p>'}`, { done: "Закрыть" });
 }
-const pendWhat = (pend) => (pend.events ? `${pend.events} ${plural(pend.events, "служение", "служения", "служений")}${pend.roster ? " и состав" : ""}` : pend.roster ? "состав" : "");
+const pendWhat = (pend) => {
+  const parts = [pend.events ? `${pend.events} ${plural(pend.events, "служение", "служения", "служений")}` : "", pend.rows ? (pend.rows === 1 ? "строки листа" : `строки ${pend.rows} ${plural(pend.rows, "листа", "листов", "листов")}`) : "", pend.roster ? "состав" : ""].filter(Boolean);
+  return parts.length > 1 ? parts.slice(0, -1).join(", ") + " и " + parts[parts.length - 1] : parts[0] || "";
+};
 function leaveSheet() {
   openSheet("Сохранить правки?", `<p style="margin-top:0">Не сохранено: <b>${pendWhat(pending())}</b>. Если не сохранить, правки пропадут — в таблицу они не попадут.</p>${changesHTML()}
     <div class="addrow" style="margin-top:16px"><button class="btn" type="button" id="lv-save">Сохранить</button><button class="btn ghost" type="button" id="lv-drop">Не сохранять</button></div>`, { done: "Остаться" });
@@ -2186,11 +2190,9 @@ function meSheet() {
 
 function cfgSheet() {
   const sw = (on, act, extra = "") => `<button class="sw2" type="button" role="switch" aria-checked="${!!on}" data-c="${act}"${extra}></button>`;
-  const roles = CFG.roles.map((r, k) => `<div class="cfg-row">${RI[r.id] ? `<span class="cfg-ico">${roleIco(r.id, r.c, 22)}</span>` : roleBdg(r)}<input type="text" value="${esc(r.name)}" data-c="rname" data-k="${k}" aria-label="Название роли">${RI[r.id] ? "<span></span>" : `<input type="text" value="${esc(r.b)}" maxlength="3" data-c="rb" data-k="${k}" aria-label="Значок">`}
-    <label class="req">${sw(r.req, "rreq", ` data-k="${k}"`)}<span>всегда</span></label>
-    <span class="stp"><button type="button" data-c="rup" data-k="${k}" ${k ? "" : "disabled"}>↑</button><button type="button" data-c="rdown" data-k="${k}" ${k < CFG.roles.length - 1 ? "" : "disabled"}>↓</button></span>
-</div>`).join("");
-  const used = new Set(CFG.mics.map((m) => m.c));
+  const roles = CFG.roles.map((r, k) => `<div class="cfg-row two">${RI[r.id] ? `<span class="cfg-ico">${roleIco(r.id, r.c, 22)}</span>` : roleBdg(r)}<span>${esc(tableName(r.id))}</span>
+    <label class="req">${sw(r.req, "rreq", ` data-k="${k}"`)}<span>всегда</span></label></div>`).join("");
+  const used = new Set(CFG.mics.map((m) => m.c)), typos = rowTypos();
   const mics = CFG.mics.map((m) => `<div class="cfg-row two">${mic(m.c)}<span>${MIC_PAL[m.c]}</span></div>`).join("");
   const pal = Object.keys(MIC_PAL).map((c) => `<button type="button" data-c="madd" data-m="${c}" title="${MIC_PAL[c]}" ${used.has(c) ? "disabled" : ""}>${mic(c)}</button>`).join("");
   const colT = [["bpm", "Темп"], ["start", "Кто начинает"], ["pray", "Кто молится"], ["sing", "Кто ведёт"]].map(([k, l]) => `<div class="tglrow"><span>${l}</span>${sw(CFG.cols[k], "col", ` data-k="${k}"`)}</div>`).join("");
@@ -2198,8 +2200,8 @@ function cfgSheet() {
   const fT = [["time", "Время и место", "сбор, начало, адрес"], ["dress", "Дресс-код", ""], ["notes", "Пометки", "свободный текст: хор, чек, ссылки"]].map(([k, l, s]) => `<div class="tglrow"><span>${l}${s ? `<small>${s}</small>` : ""}</span>${sw(CFG.fields[k], "fld", ` data-k="${k}"`)}</div>`).join("");
   const fX = CFG.evCustom.map((c, k) => `<div class="cfg-row two"><span class="muted">≡</span><input type="text" value="${esc(c.name)}" data-c="fxname" data-k="${k}"><button class="mx" type="button" data-c="fxdel" data-k="${k}">×</button></div>`).join("");
   openSheet("Настроить таблицу", `<p class="muted shint">У каждой команды своя таблица. «Всегда» — строка роли подсвечивается, если пусто; без него — роль по надобности (скрипка на Рождество).</p>
-    <div class="cfg-h">Состав</div><div class="cfg-list">${roles}</div>
-    <div class="cfg-h">Вокал</div><div class="cfg-list">${mics}</div><p class="muted" style="font-size:13px">Добавить, переименовать, переставить или удалить строку инструмента или микрофона — в «Править»: «+» под составом и вокалом, нажатие на строку; так она попадёт в таблицу, в лист месяца. Голос без своего микрофона — «+ голос» в служении.</p>
+    <div class="cfg-h">Состав</div><div class="cfg-list">${roles}</div>${typos.length ? `<div class="cfg-fix"><span>В таблице опечатка: «${esc(typos[0].label)}» — в ${typos.length} ${plural(typos.length, "листе", "листах", "листах")}, и в скрытых.</span><button class="tool" type="button" data-c="typo">Поправить на «${esc(typos[0].to)}»</button></div>` : ""}
+    <div class="cfg-h">Вокал</div><div class="cfg-list">${mics}</div><p class="muted" style="font-size:13px">Добавить, переименовать, переставить или удалить строку инструмента или микрофона — в «Править»: «+» под составом и вокалом, нажатие на строку; так она попадёт в таблицу, в лист месяца. Названия строк — как в таблице.</p>
     <div class="cfg-h">Столбцы песен</div>${colT}<div class="cfg-list" style="margin-top:8px">${colX}</div><div class="tools"><button class="tool" type="button" data-c="sxadd">+ Столбец</button></div>
     <div class="cfg-h">Поля служения</div>${fT}<div class="cfg-list" style="margin-top:8px">${fX}</div><div class="tools"><button class="tool" type="button" data-c="fxadd">+ Поле</button></div>
     <div class="addrow" style="margin-top:20px"><button class="btn ghost" type="button" data-c="reset">Сбросить настройки</button></div>`);
@@ -2208,6 +2210,11 @@ function cfgSheet() {
   panel.onclick = (e) => {
     const b = e.target.closest("[data-c]"); if (!b || b.tagName === "INPUT") return;
     const c = b.dataset.c, k = +b.dataset.k;
+    if (c === "typo") {
+      const list = rowTypos(), ev0 = D.events.find((e) => !e.deleted);
+      if (list.length && ev0) withUndo(() => { list.forEach((x) => (D.rowOps[x.tab] ||= []).push({ op: "label", ri: x.ri, label: x.to })); log(ev0, `опечатка: «${list[0].label}» → «${list[0].to}» в ${list.length} ${plural(list.length, "листе", "листах", "листах")}`); })();
+      return redraw(keep);
+    }
     if (c === "rreq") CFG.roles[k].req = !CFG.roles[k].req;
     else if (c === "rup" || c === "rdown") { const j = c === "rup" ? k - 1 : k + 1; [CFG.roles[k], CFG.roles[j]] = [CFG.roles[j], CFG.roles[k]]; }
     else if (c === "rdel") CFG.roles.splice(k, 1);
@@ -2323,6 +2330,15 @@ function rowMoveTo(ml, x, k, evs) {
   const ev0 = evs[0] || { date: S.month + "-01", session: null };
   log(ev0, `${monName(S.month)}: строка «${x.label}» — ${k === s.length ? `после «${T.label}»` : `перед «${T.label}»`}`);
   return to;
+}
+const ROW_TYPOS = { voilin: "Violin" };
+function rowTypos() {
+  if (!BOOK || !S.live) return [];
+  return BOOK.sheets.filter((sh) => FW.tabMonth(sh.name)).flatMap((sh) => {
+    const ef = FW.rowOps(sh, (D.rowOps || {})[sh.name]).sheet;
+    return FW.layoutOf(ef.rows, ef.hidden_rows).rows.filter((x) => x.kind === "role" && ROW_TYPOS[x.name.toLowerCase()])
+      .map((x) => ({ tab: sh.name, ri: x.ri, label: x.label, to: x.label.replace(x.name, ROW_TYPOS[x.name.toLowerCase()]) }));
+  });
 }
 const sheetSc = () => { const b = $("#layer .sheet-b"); return b && getComputedStyle(b).overflowY !== "visible" ? b : $("#layer .sheet-panel"); };
 let tt;
@@ -2621,13 +2637,22 @@ function roleKind(id) {
   const n = id.slice(2), base = n.replace(/[\s\d#№.-]+$/u, "");
   return FW.ROLE_KEYS[base] || KIND_RU[base] || id;
 }
+let TROW = { src: null, map: {} };
+function tableRow(id) {
+  if (TROW.src !== D.layouts) {
+    const map = {}, tabs = Object.keys(D.layouts || {}).filter((t) => FW.tabMonth(t)).sort((a, b) => (FW.tabMonth(a) < FW.tabMonth(b) ? 1 : -1));
+    tabs.forEach((t) => D.layouts[t].rows.forEach((x) => { if (x.kind === "role" && !(x.id in map)) map[x.id] = x; }));
+    TROW = { src: D.layouts, map };
+  }
+  return TROW.map[id] || null;
+}
+const tableName = (id) => (tableRow(id) || {}).name || (id.startsWith("x:") ? id.slice(2) : id);
 function roleInfo(id, row) {
-  const kind = roleKind(id), c = CFG.roles.find((r) => r.id === kind), own = row && !row.base;
-  const lay = row || (monthLay(S.month) || { L: { rows: [] } }).L.rows.find((x) => x.kind === "role" && x.id === id);
-  const far = !lay && id.startsWith("x:") ? Object.values(D.layouts || {}).flatMap((L) => L.rows || []).find((x) => x.id === id) : null;
-  const name = own || (lay && !lay.base) ? lay.name : far ? far.name : c ? c.name : id;
-  const ico = (lay && !lay.base) ? `<span class="remo" aria-hidden="true">${esc(lay.emoji || "•")}</span><span class="rsn">${esc(lay.name.slice(0, 4))}</span>` : c ? roleIco(c.id, c.c, 18) || roleBdg(c, true) : `<span class="remo">•</span>`;
-  return { kind, name, ico, req: !!(c && c.req && !(lay && !lay.base)), ri: lay ? lay.ri : -1 };
+  const kind = roleKind(id), c = CFG.roles.find((r) => r.id === kind);
+  const lay = row || (monthLay(S.month) || { L: { rows: [] } }).L.rows.find((x) => x.kind === "role" && x.id === id), far = lay ? null : tableRow(id);
+  const name = lay ? lay.name : tableName(id), own = lay ? !lay.base : id.startsWith("x:"), emo = (lay || far || {}).emoji;
+  const ico = own ? `<span class="remo" aria-hidden="true">${esc(emo || "•")}</span><span class="rsn">${esc(name.slice(0, 4))}</span>` : c ? roleIco(c.id, c.c, 18) || roleBdg(c, true) : `<span class="remo">•</span>`;
+  return { kind, name, ico, req: !!(c && c.req && !own), ri: lay ? lay.ri : -1 };
 }
 function fitRows(e) {
   const ml = monthLay(e.date.slice(0, 7));
@@ -2882,7 +2907,7 @@ function importSheet(ev0) {
   if (FINE || !S.imp.text) $("#im-t").focus();
 }
 
-const abilities = () => CFG.roles.map((r) => ({ id: r.id, head: roleBdg(r, true), name: r.name, c: r.c }))
+const abilities = () => CFG.roles.map((r) => ({ id: r.id, head: roleBdg(r, true), name: tableName(r.id), c: r.c }))
   .concat([{ id: "voc", head: "Вокал", name: "Вокал", c: "verse" }, { id: "sing", head: "🎤 Ведёт", name: "Ведёт песни", c: "bridge" }, { id: "pray", head: "🙏", name: "Молится", c: "post" }]);
 const TEAM_COLS = ["Музыканты", "Вокал", "Звук"];
 const abIco = (x, sz) => roleIco(x.id, x.c, sz) || (x.id in RI ? "" : roleBdg({ b: (CFG.roles.find((r) => r.id === x.id) || {}).b || "?", c: x.c }, true));
@@ -2998,7 +3023,7 @@ function personSheet(key) {
   const nServ = (n) => (n ? `${n} ${plural(n, "служение", "служения", "служений")}` : "в графике пока нет");
   const chip = (k, label, sub, n, un) => `<span class="mchip"><b>${esc(label)}</b>${sub ? `<small>${esc(sub)}</small>` : ""}<small title="${n ? nServ(n) : "в графике так ещё не записан"}">${n || "нет в графике"}</small><button type="button" ${un} aria-label="${esc(label)} — другой человек" title="Это другой человек">×</button></span>`;
   const chipsH = () => Object.keys(RO.merge).filter((k) => k !== key && resolve(k) === key).map((k) => chip(k, mName(k), "", (R[key].byKey[k] || new Set()).size, `data-un="${esc(k)}"`)).join("") +
-    Object.entries(RO.scoped || {}).flatMap(([nk, xs]) => xs.filter((x) => x.to === key).map((x) => chip(nk, mName(nk), "только " + x.roles.map((r) => abilName(r).toLowerCase()).join(", "), (R[key].byKey[nk] || new Set()).size, `data-uns="${esc(nk)}"`))).join("") +
+    Object.entries(RO.scoped || {}).flatMap(([nk, xs]) => xs.filter((x) => x.to === key).map((x) => chip(nk, mName(nk), "только " + x.roles.map(abilName).join(", "), (R[key].byKey[nk] || new Set()).size, `data-uns="${esc(nk)}"`))).join("") +
     `<button type="button" class="mchip add" id="pn-add">+ Добавить</button>`;
   openSheet(p.name, `<div id="pn-stats">${statsH(p)}</div><div class="cfg-h">Имя в графике</div><div class="addrow" style="margin-top:0"><input id="pn-name" class="inp cbx" data-cbx="list" data-opts="spell" data-p="${esc(key)}" role="combobox" aria-autocomplete="list" aria-expanded="false" autocomplete="off" spellcheck="false" aria-label="Имя в графике" value="${esc((RO.names || {})[key] || p.name)}"></div>
     <div class="cfg-h">Полное имя</div><div class="addrow" style="margin-top:0"><input class="inp" data-x="${esc(fullCol())}" placeholder="Имя Фамилия" value="${esc(fullOf(key))}" aria-label="Полное имя"></div>
@@ -3030,7 +3055,7 @@ function personSheet(key) {
       RO.scoped = RO.scoped || {}; RO.scoped[k] = (RO.scoped[k] || []).filter((x) => !x.roles.some((r) => roles.includes(r))).concat([{ to: key, roles }]);
       RO.abil[key] = [...new Set([...R[key].abil, ...roles])];
       if (y) RO.abil[k] = [...y.abil].filter((r) => !roles.includes(r));
-      saveRO(); return `${y ? y.name : clean(v)} (${roles.map((r) => abilName(r).toLowerCase()).join(", ")})`;
+      saveRO(); return `${y ? y.name : clean(v)} (${roles.map(abilName).join(", ")})`;
     }
     if (y) { RO.abil[key] = [...new Set([...R[key].abil, ...y.abil])]; if (xs[k]) xs[key] = { ...xs[k], ...(xs[key] || {}) }; }
     else { RO.names = RO.names || {}; RO.names[k] = clean(v); }
@@ -3139,7 +3164,7 @@ async function signIn() {
 function signOut() { try { if (AUTH.tok && window.google) google.accounts.oauth2.revoke(AUTH.tok); } catch {} Object.assign(AUTH, { tok: "", exp: 0, email: "" }); saveAuth(); S.admin = false; render(); }
 
 const abilName = (id) => (abilities().find((x) => x.id === id) || {}).name || (id.startsWith("x:") ? roleInfo(id).name : id);
-function abilId(w) { const n = norm(w); const x = abilities().find((a) => norm(a.name) === n || norm(a.id) === n || (a.id === "sing" && /^вед/.test(n)) || (a.id === "pray" && /^мол/.test(n))); return x ? x.id : ""; }
+function abilId(w) { const n = norm(w); const x = abilities().find((a) => norm(a.name) === n || norm(a.id) === n || KIND_RU[n] === a.id || (a.id === "sing" && /^вед/.test(n)) || (a.id === "pray" && /^мол/.test(n))); return x ? x.id : ""; }
 const RC = FW.ROSTER_HEAD, FULL = "Полное имя";
 const isTg = (c) => /^(telegram|телеграм|tg|тг)\b/i.test(c);
 const isFull = (c) => /^(полное имя|фио?|имя и фамилия|фамилия и имя)$/i.test(c);
@@ -3198,6 +3223,7 @@ function setBook(book) {
   D.events.forEach((e, i) => { prep(e, i); e.orig = FW.groups(e); ORIG[e.uid] = { src: e.src, orig: e.orig }; });
   RO = p.roster ? roFromRows(p.roster, p.rosterHead) : Object.assign({ merge: {}, abil: {}, off: [], on: [], added: [], diff: [], extra: {}, scoped: {} }, S.live ? {} : store.get("roster", {}));
   RO0 = roSig();
+  S.roMig = !!(p.roster || []).some((r) => r.some((v) => String(v || "").split(/[,;()]/).some((w) => KIND_RU[norm(w)])));
   H.undo = []; H.redo = [];
   derive();
 }
@@ -3252,8 +3278,8 @@ function pending() {
     if (FW.diff(FW.groups(e), e.orig).length) n++;
   });
   const tabLive = (tab) => (BOOK && BOOK.sheets.some((s) => s.name === tab)) || D.events.some((e) => !e.deleted && FW.tabName(e.date.slice(0, 7)) === tab);
-  const roster = roSig() !== RO0, rows = Object.entries(D.rowOps || {}).filter(([tab, a]) => a.length && tabLive(tab)).length;
-  return { n: n + rows + (roster ? 1 : 0), events: n, roster };
+  const roster = roSig() !== RO0 || !!S.roMig, rows = Object.entries(D.rowOps || {}).filter(([tab, a]) => a.length && tabLive(tab)).length;
+  return { n: n + rows + (roster ? 1 : 0), events: n, rows, roster };
 }
 async function save() {
   if (S.saving) return;
@@ -3281,7 +3307,7 @@ async function save() {
     if (c("новое")) parts.push(`${c("новое")} ${plural(c("новое"), "новое", "новых", "новых")}`);
     if (c("перенос")) parts.push(`перенос: ${c("перенос")}`);
     if (c("удалено")) parts.push(`удалено: ${c("удалено")}`);
-    if (c("строки")) parts.push(`строки листа: ${plan.summary.filter((x) => x.what === "строки").map((x) => x.tab).join(", ")}`);
+    if (c("строки")) parts.push(c("строки") > 3 ? `строки ${c("строки")} листов` : `строки листа: ${plan.summary.filter((x) => x.what === "строки").map((x) => x.tab).join(", ")}`);
     if (c("лист")) parts.push(`новый лист: ${plan.summary.filter((x) => x.what === "лист").map((x) => x.tab).join(", ")}`);
     if (c("состав")) parts.push("состав");
     toast(`Сохранено в «${meta.title}»: ${parts.join(", ")}`);
@@ -3292,7 +3318,7 @@ async function save() {
 function conflictSheet(bad, fresh) {
   const rowName = (lab, r) => {
     const rid = !lab.includes("🎤") && !lab.startsWith("Song list") && FW.roleId(FW.rowName(lab));
-    return lab.startsWith("Song list") ? "песни" : lab.includes("🎤") ? `вокал (${micInfo(FW.slotOf(lab)).short})` : rid && !/Dress|Note/.test(lab) ? roleInfo(rid).name.toLowerCase() : lab.includes("Dress") ? "дресс-код" : lab.includes("Note") ? "пометки" : lab.trim() || "строка " + (r + 1);
+    return lab.startsWith("Song list") ? "песни" : lab.includes("🎤") ? `вокал (${micInfo(FW.slotOf(lab)).short})` : rid && !/Dress|Note/.test(lab) ? roleInfo(rid).name : lab.includes("Dress") ? "дресс-код" : lab.includes("Note") ? "пометки" : lab.trim() || "строка " + (r + 1);
   };
   const where = (x) => {
     if (x.tab === FW.ROSTER_TAB) return `лист «${x.tab}», строка ${x.row + 1}`;
