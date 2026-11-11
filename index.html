@@ -1456,7 +1456,7 @@ const DEF_CFG = {
 let CFG = store.get("cfg", null) || JSON.parse(JSON.stringify(DEF_CFG));
 const saveCfg = () => store.set("cfg", CFG);
 
-const VERSION = "0.13.0";
+const VERSION = "0.13.1";
 const FINE = matchMedia("(pointer: fine)").matches;
 const Q = new URLSearchParams(location.search);
 const S = { live: false, view: Q.get("view") || store.get("view", "grid"), rf: "all", rq: "", showOff: false, me: Q.get("me") ?? store.get("me", ""), admin: Q.get("admin") === "1", month: Q.get("m") || "", hidePast: false, open: new Set(), allOpen: Q.get("open") === "all", changes: [], noteOpen: {} };
@@ -2931,7 +2931,7 @@ function team() {
   const fit = (p) => (!hits || hits.has(p)) && (S.rf === "all" || p.abil.has(S.rf));
   const all = Object.values(R), on = all.filter((p) => p.active && fit(p)).sort(byName), off = all.filter((p) => !p.active && fit(p)).sort(byName);
   const chips = `<div class="fchips rf"><button type="button" data-act="rf" data-f="all" aria-pressed="${S.rf === "all"}">Все</button>${ab.map((x) => `<button type="button" data-act="rf" data-f="${x.id}" aria-pressed="${S.rf === x.id}" title="${esc(x.name)}">${abIco(x, 16)}${esc(x.name)}</button>`).join("")}</div>`;
-  const bar = `<div class="rbar"><input type="search" placeholder="Имя" value="${esc(S.rq)}" data-act="rq" aria-label="Поиск человека"><button class="tool" type="button" data-act="stats">${I.stats} Статистика</button>${S.admin ? `<input class="padd" placeholder="+ Человек" data-act="padd" aria-label="Добавить человека">` : ""}</div>${chips}`;
+  const bar = `<div class="rbar"><input type="search" placeholder="Имя" value="${esc(S.rq)}" data-act="rq" aria-label="Поиск человека"><button class="tool" type="button" data-act="stats">${I.stats} Статистика</button>${S.admin ? `<button class="tool" type="button" data-act="pnew">+ Человек</button>` : ""}</div>${chips}`;
   const sg = S.admin ? suggestions() : [];
   const sugg = sg.length ? `<details class="sugg"${S.suggOpen ? " open" : ""} ontoggle="S.suggOpen = this.open"><summary><b>Похоже на одного человека: ${sg.length} ${plural(sg.length, "пара", "пары", "пар")}</b> — в таблице записан по-разному</summary>${sg.map(([a, b]) => `<div class="it"><span><b>${esc(a.name)}</b> (${a.total}) и <b>${esc(b.name)}</b> (${b.total}) — ни разу не стояли в составе одного служения, роли совпадают</span><button class="tool" type="button" data-act="merge" data-a="${a.key}" data-b="${b.key}">Объединить</button><button class="tool" type="button" data-act="diff" data-a="${a.key}" data-b="${b.key}">Разные люди</button></div>`).join("")}</details>` : "";
   const me = (p) => S.me && resolve(nkey(S.me)) === p.key;
@@ -2966,7 +2966,7 @@ function teamAct(el, type) {
   else if (a === "stats" && click) return statsSheet();
   else if (a === "merge" && click) { RO.merge[el.dataset.b] = el.dataset.a; saveRO(); toast("Объединено — в сетке теперь одно имя"); }
   else if (a === "diff" && click) { RO.diff.push(el.dataset.a + "|" + el.dataset.b); saveRO(); }
-  else if (a === "padd" && change) { const n = el.value.trim(); if (!n) return; RO.added.push(n); const k = nkey(n); RO.on = RO.on.filter((x) => x !== k).concat(k); RO.off = RO.off.filter((x) => x !== k); saveRO(); toast(`${n} — в составе`); }
+  else if (a === "pnew" && click) return personNew();
   else if (a === "pedit" && click) return personSheet(el.dataset.p);
   else return;
   render();
@@ -3002,6 +3002,48 @@ function statsSheet() {
   $("#st-from").onchange = setD("from"); $("#st-to").onchange = setD("to");
   $("#st-off").onchange = (e) => { st.off = e.target.checked; draw(); };
   draw();
+}
+function personNew() {
+  const ab = abilities(), st = { abil: new Set(), active: true };
+  const xc = xcolsOf(rosterCols()).filter((c) => !isTg(c) && !isFull(c) && !c.startsWith("#"));
+  const abilH = () => ab.map((x) => `<button type="button" data-pa="${x.id}" aria-pressed="${st.abil.has(x.id)}">${abIco(x, 16)}${esc(x.name)}</button>`).join("");
+  const stH = () => `<button type="button" data-v="on" aria-pressed="${st.active}">Служит</button><button type="button" data-v="off" aria-pressed="${!st.active}">В архиве</button>`;
+  const fld = (label, inner) => `<div class="cfg-h">${label}</div><div class="addrow" style="margin-top:0">${inner}</div>`;
+  openSheet("Новый человек", `${fld("Имя в графике", `<input id="pn-name" class="inp" placeholder="как пишут в таблице: имя и буква фамилии" autocomplete="off" spellcheck="false" aria-label="Имя в графике">`)}
+    <p class="ef-w" id="pn-w" hidden></p>
+    ${fld("Полное имя", `<input id="pn-full" class="inp" placeholder="Имя Фамилия" aria-label="Полное имя">`)}
+    ${fld("Telegram", `<input id="pn-tg" class="inp" placeholder="@ник" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Ник в Telegram">`)}
+    ${xc.map((c) => fld(esc(c), `<input class="inp" data-x="${esc(c)}" aria-label="${esc(c)}">`)).join("")}
+    <div class="cfg-h">Умеет</div><div class="fchips wr" id="pn-ab">${abilH()}</div>
+    <div class="cfg-h">Сейчас</div><div class="segc sm" id="pn-st">${stH()}</div>`, { go: "Добавить", goId: "pn-go" });
+  const nIn = $("#pn-name"), go = $("#pn-go"), w = $("#pn-w"), nm = () => nIn.value.replace(/\s+/g, " ").trim();
+  const warn = (html) => { w.innerHTML = html; w.hidden = !html; };
+  const check = () => {
+    const n = nm(), k = n && resolve(nkey(n)), had = k && R[k];
+    go.disabled = !n || !!had;
+    warn(had ? `«${esc(had.name)}» уже в составе${had.active ? "" : " (в архиве)"}. <button class="linkb" type="button" id="pn-open">Открыть карточку</button>` : "");
+    if (had) $("#pn-open").onclick = () => personSheet(k);
+  };
+  nIn.oninput = check;
+  $("#pn-ab").onclick = (e) => { const b = e.target.closest("[data-pa]"); if (!b) return; const id = b.dataset.pa; st.abil.has(id) ? st.abil.delete(id) : st.abil.add(id); $("#pn-ab").innerHTML = abilH(); };
+  $("#pn-st").onclick = (e) => { const b = e.target.closest("button"); if (!b) return; st.active = b.dataset.v === "on"; $("#pn-st").innerHTML = stH(); };
+  go.onclick = () => {
+    const n = nm(); if (!n) return;
+    const tg = $("#pn-tg").value.trim().replace(/^https?:\/\/t\.me\//i, "").replace(/^@/, "").replace(/\/.*$/, "");
+    if (tg && !/^[A-Za-z][A-Za-z0-9_]{3,31}$/.test(tg)) return warn("Ник в Telegram — латиница, цифры и _, от 4 знаков");
+    const k = nkey(n), x = {}, full = $("#pn-full").value.replace(/\s+/g, " ").trim();
+    if (full) x[fullCol()] = full;
+    if (tg) x[tgCol()] = "@" + tg;
+    $("#layer .sheet-panel").querySelectorAll("[data-x]").forEach((i) => { const v = i.value.replace(/\s+/g, " ").trim(); if (v) x[i.dataset.x] = v; });
+    withUndo(() => {
+      RO.added.push(n); RO.on = RO.on.filter((y) => y !== k); RO.off = RO.off.filter((y) => y !== k); (st.active ? RO.on : RO.off).push(k);
+      if (st.abil.size) RO.abil[k] = [...st.abil];
+      if (Object.keys(x).length) (RO.extra ||= {})[k] = x;
+      saveRO();
+    })();
+    closeSheet(); render(); toast(`${n} — в составе${st.active ? "" : ", в архиве"}`);
+  };
+  if (FINE) nIn.focus();
 }
 function personSheet(key) {
   const p = R[key]; if (!p) return;
