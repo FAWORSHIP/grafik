@@ -1450,13 +1450,31 @@ FW.apply = function (book, requests) {
   return book;
 };
 
+FW.FOLDER = "application/vnd.google-apps.folder";
+const tid = (f) => (f.shortcutDetails ? f.shortcutDetails.targetId : f.id);
+const isDir = (f) => (f.shortcutDetails ? f.shortcutDetails.targetMimeType : f.mimeType) === FW.FOLDER;
+FW.libDirs = (root) => [...new Set(root.filter(isDir).map(tid))];
+FW.libFromDrive = function (root, subs, norm) {
+  const lib = {}, names = {};
+  const cho = (f) => !isDir(f) && /\.cho$/i.test(f.name);
+  const clean = (s) => s.normalize("NFC").replace(/[^\p{L}\p{N}_\s(),.'’!?«»+-]+/gu, " ").replace(/\s+/g, " ").trim();
+  const add = (f, folder) => {
+    const stem = f.name.normalize("NFC").replace(/\.cho$/i, ""), fk = norm(folder);
+    for (const k of [norm(stem), fk]) if (k && !(k in lib)) lib[k] = tid(f);
+    if (fk && /\p{L}/u.test(folder) && !(fk in names)) names[fk] = folder;
+  };
+  root.filter(cho).forEach((f) => add(f, ""));
+  root.filter(isDir).forEach((d) => (subs[tid(d)] || []).filter(cho).forEach((f) => add(f, clean(d.name))));
+  return { lib, names };
+};
+
 if (typeof module === "object" && module.exports) module.exports = FW; else G.FW = FW;
 })(typeof globalThis !== "undefined" ? globalThis : this);
 </script>
 <script>
 const SNAP = null;
 const GCFG = {"sheet": "", "clientId": "141637301748-b748rmp32rd92nspuq3i7jhtvpi2h028.apps.googleusercontent.com", "mainH": "3a62bf5c"};
-const LIB = {"\u043c\u043d\u0435 \u0445\u043e\u0440\u043e\u0448\u043e \u0432 \u0434\u043e\u043c\u0435 \u0442\u0432\u043e\u0435\u043c": "12KZOG1e9GwFE1jzRLevFAR2yd-fDr8HV", "\u0438\u0435\u0448\u0443\u0430": "1xMulkmbWNpNNWDJxLL6fERDFv8RsfBBG", "\u0441\u043b\u0430\u0432\u044c": "1kju7iPqnh2ZkC0AZN9JJfh4_ugXyZLjU", "\u043f\u044b\u043b\u044c": "1yBcu85ClujpAphsrxwBAKUh2vECF-Ee2", "\u043f\u043e\u043a\u043e\u0439": "1J1jKqTmb3t8JohPr1AjaAE5mZYApFZOr", "\u0440\u044f\u0434\u044b": "1iYL8Dl4OPnxniQrTR1fBBb9uZ24CuAQ1", "\u0443\u0437\u0440\u044e \u0431\u043e\u0433\u0430": "1lg1mvMxQTJnM0-cEundafkO21KmBqUo7", "\u0438\u0441\u043f\u043e\u043b\u044c\u0437\u0443\u0439 \u043c\u0435\u043d\u044f \u0431\u043e\u0433": "1Wuk32e7_7egdS7bHtHUE5vHlHW-GhQ7Y", "\u0434\u043e\u0436\u0434\u044c \u0438\u0434\u0435\u0442": "1H4U8Z23GbHMEWmvEBLsLY3W3IvcwpOnn", "\u0431\u043e\u0433 \u0437\u0430 \u043d\u0430\u0441 \u0432\u043e\u044e\u0435\u0442": "1mJLyaYc7721TjlBOUwYPRz78VJg6ZUz3", "\u0433\u043e\u0441\u043f\u043e\u0434\u044c \u0442\u044b \u043f\u0430\u0441\u0442\u044b\u0440\u044c \u043c\u043e\u0439": "1vhocElMOzpNx0MOyiC_RsfT0w3lwcRfZ", "\u043b\u044e\u0431\u043e\u0432\u044c \u043d\u0435 \u043e\u0441\u0442\u0430\u0432\u0438\u0442": "1QaNJwATeDUzsBD1wjHP8H74VDYtU3rSO", "\u0442\u0435\u0431\u0435 \u0437\u0430 \u0432\u0441\u0435 \u0441\u043b\u0430\u0432\u0430": "1KdEn8zMNVBxJzcPTeT1PtKB_syBjkYJv", "\u0441\u0432\u043e\u0431\u043e\u0434\u0435\u043d \u044f": "1lQAJJJu5f3M9EZppn-sM3tnkpF8Q-dK-", "\u0432\u043b\u044e\u0431\u043b\u044f\u044e\u0441\u044c \u0432 \u0442\u0435\u0431\u044f": "15w65_DG_sVQb5u-R9dOI4luNeTVIAWx_", "\u0435\u0433\u043e \u0438\u043c\u044f \u0438\u0438\u0441\u0443\u0441": "1fDjWBVmAtj-WUvXdrcqEjoF5uDJVvUEN", "\u0434\u0443\u0445 \u0441\u0432\u044f\u0442\u043e\u0439 \u0432 \u0442\u0435\u0431\u0435 \u044f \u043d\u0443\u0436\u0434\u0430\u044e\u0441\u044c": "1gOKZCZIasHR3IhiX18QIf9xGpkbgnwif", "\u0434\u0435\u0440\u0436\u0443": "1RI6D0qP8qV3w4GqnW0yA8AZP347ynhv1", "\u043c\u043e\u0439 \u0441\u043f\u0430\u0441\u0438\u0442\u0435\u043b\u044c \u0436\u0438\u0432": "13Xa5TROSatXZF7eejlsEyJwaS01SjFiC", "\u0438\u0438\u0441\u0443\u0441 \u0442\u044b \u043b\u044e\u0431\u043e\u0432\u044c \u043c\u043e\u044f": "1oOK60c92-qwB0UDWOV4jveqdDYy104E_", "\u043b\u044e\u0431\u043e\u0432\u044c\u044e \u0438 \u0441\u0438\u043b\u043e\u0439": "1GbJaHdlpFfc3kJpOfYc7AClIRXXTSE7i", "\u043f\u043e\u0432\u0435\u0440\u0445": "1QfYuCU8W6FEwpvUxfp_HbBOz5x7aL6_5", "\u0432\u043e\u0432\u0435\u043a\u0438": "1pHOQEPB6OIQVq1CGdOEn1OCzWu4J294j", "\u0431\u043e\u0433 \u0431\u043b\u0430\u0433\u043e\u0439": "19CakIL2fOadiS6su-HwJkCYpMWKeKQuP", "\u043e\u043a\u0435\u0430\u043d\u044b": "1wbhqwEcyQmgEr7s_RIbSws2MTQ-4wjP5", "\u044f\u0445\u0432\u0435": "1Mcxxl8-XkSY3cNJy7rAvHhkT0Y-e8PxR", "\u044f \u0432\u0445\u043e\u0436\u0443 \u0432 \u0441\u0432\u044f\u0442\u043e\u0435 \u0441\u0432\u044f\u0442\u044b\u0445": "1ML1QLAWusy2R_gwe3G46c_TnbZ2PA7IW", "\u0432 \u044d\u0442\u043e\u043c \u043c\u0435\u0441\u0442\u0435": "1WSvyoYBLi0arjajjQMmAFesW7XG0Uwsl", "\u0431\u0443\u0434\u044c \u0431\u043b\u0430\u0433\u043e\u0441\u043b\u043e\u0432\u0435\u043d": "19KcFTGiFP3P3a9uEGx6BYG0KFR9ThWIe", "\u0432 \u0440\u0435\u043a\u0435": "1gmJLM9deCQ0Tx3G4q5S-ePlfO2zEsaHN", "\u0446\u0435\u043b\u0438\u0442\u0435\u043b\u044c": "1mJBDusvJ03IvnmPEMLi5MITKR1abMLZ5", "\u043f\u0441\u0430\u043b\u043e\u043c 61": "1Vd6JV4YHRQhP-QvMj1X4GvOC02RBA6l_", "\u043e \u0431\u043b\u0430\u0433\u043e\u0434\u0430\u0442\u044c": "15-CM_AyaRXxwIR8WSR9UiS441f6coN1c", "\u0432\u0441\u0435 \u0447\u0442\u043e \u044f \u043c\u043e\u0433\u0443 \u043e\u0442\u0434\u0430\u0442\u044c": "1dZ-v2KzaY3zsD2Q5BQkux5x2hZ8pMR9Z", "\u0432 \u0441\u0430\u0434\u0443 \u0441\u043a\u043b\u043e\u043d\u0438\u043b\u0441\u044f \u0431\u043e\u0436\u0438\u0439 \u0441\u044b\u043d": "1SydSkYoN17m0S_JwbosqVlVz_n-lnJHw", "\u0431\u043b\u0430\u0433\u043e\u0441\u043b\u043e\u0432\u0435\u043d\u0438\u0435": "1SBDe4ikxqMpC-gKf8Apr2UPQnsoovOP-", "\u0431\u043e\u0433 \u0441\u0438\u043b\u044c\u043d\u044b\u0439": "1LxsY6PFNkmVJ0sZbCEBW0waS50At_oI0", "\u0441\u0432\u0435\u0436\u0438\u0439 \u0432\u0435\u0442\u0435\u0440": "1S5ZjmVaSGHYsy-XOPAcuiew_4C-8IZq2", "\u0437\u043d\u0430\u044e \u043c\u0435\u043d\u044f \u043f\u043e\u0431\u0435\u0434\u0430 \u0436\u0434\u0435\u0442": "1fPcD9D8-JOqn-6wk-B2Ur92rK_96QNam", "\u0432\u0441\u0435 \u043c\u043e\u0433\u0443": "1AjILpnuYnCzxPA2rehinQDkJUpCSDwBt", "\u0438\u0435\u0448\u0443\u0430 \u0441\u0442\u0430\u0440\u0430\u044f": "1Bug-gszDZnhJZpVOTMHTiDYzgVMuuG3U", "\u0441\u0442\u0435\u043d\u044b \u0432\u0441\u0435 \u043f\u0430\u0434\u0443\u0442": "15HrjB7azRW8iLoGG56Y4fxb5P0sz06N_", "\u043d\u0430\u0448 \u0431\u043e\u0433 \u0442\u0430\u043a \u0432\u0435\u043b\u0438\u043a": "1KaTfZNSE3ogyDtGDYVQbbgjiOVQP272J", "\u0436\u0438\u0432": "1xQvxXhrYcQXAXgamMJ7x3jyGTget8quQ", "\u0436\u0438\u0432 wake": "1xQvxXhrYcQXAXgamMJ7x3jyGTget8quQ", "\u043d\u0435 \u0431\u043e\u0439\u0441\u044f": "1s5e9yYHb4D50got8NmCg2Vrj5jJSmK4l", "\u0445\u0432\u0430\u043b\u0430 \u0442\u0435\u0431\u0435": "1wq6BM-gCLe8vzgVl0HuvfPwMpF-4vjkm", "\u043d\u0435 \u0443\u043c\u0440\u0443": "1fOyHbWotIPIKNc0eN7hWC0QUWGY1Ij4T", "\u043d\u0435 \u0443\u043c\u0440\u0443 \u044f": "1fOyHbWotIPIKNc0eN7hWC0QUWGY1Ij4T", "\u0432\u043e\u0434\u0443 \u0432 \u0432\u0438\u043d\u043e": "1yYmQyMIGQGnBTU-j_tc9CsQuJsUkZddp", "\u043e \u043a\u0430\u043a \u0442\u044b \u0432\u0435\u043b\u0438\u043a": "1Xi4pAnKboerI54tX5_jpOTIh-EFOmO8r", "\u0441\u0442\u043e\u044e": "18H4WLKD1VALc6ZpUXV0YLe61Oqz95NAm", "\u043e\u0441\u0430\u043d\u043d\u0430": "1R0pzLN5jmWrWf6nvYIfukFFfSHT8Wfae", "\u0442\u0440\u0435\u043f\u0435\u0442": "1cBfDc8ycQPdn3Jkzwf9awtdvZITGJhgY", "\u043d\u0430 \u0448\u0430\u0433 \u0431\u043b\u0438\u0436\u0435": "1enXGXo-uFkb1L2XrNE11WYWLsrJpsnGD"};
+const LIB = (SNAP && SNAP.library) || {};
 let D = SNAP || { built: "", sheet: "", tabs: [], events: [], base: [], learn: [], library: LIB, roster: null, empty: true };
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
@@ -1490,7 +1508,7 @@ const DEF_CFG = {
 let CFG = store.get("cfg", null) || JSON.parse(JSON.stringify(DEF_CFG));
 const saveCfg = () => store.set("cfg", CFG);
 
-const VERSION = "0.15.0";
+const VERSION = "0.16.0";
 const FINE = matchMedia("(pointer: fine)").matches;
 const Q = new URLSearchParams(location.search);
 const S = { live: false, view: Q.get("view") || store.get("view", "grid"), rf: "all", rq: "", showOff: false, me: Q.get("me") ?? store.get("me", ""), admin: Q.get("admin") === "1", month: Q.get("m") || "", hidePast: false, open: new Set(), allOpen: Q.get("open") === "all", changes: [], noteOpen: {} };
@@ -1837,7 +1855,7 @@ function songsCompact(e) {
     const its = e.items.filter((i) => i.group === b.id && i.kind !== "new");
     if (b.name) out += `<li class="sec">${esc(b.name)}</li>`; else if (bi > 0) out += '<li class="gapl" aria-hidden="true"></li>';
     its.forEach((i) => {
-      const si = lv.indexOf(i), a = `<a href="${esc(setUrl(e, si < 0 ? 0 : si + 1))}" target="_blank" rel="noopener" title="${libId(i.name) ? "Открыть чарт в ChartSet" : "Чарта пока нет — откроется название"}">${esc(i.name)}</a>`;
+      const si = lv.indexOf(i), a = `<a href="${esc(setUrl(e, si < 0 ? 0 : si + 1))}" target="_blank" rel="noopener" title="${libId(i.name) ? "Открыть чарт в ChartSet" : libOn() ? "Чарта пока нет — откроется название" : "Откроется в ChartSet"}">${esc(i.name)}</a>`;
       if (i.kind === "song") out += `<li class="${i.flags.includes("struck") ? "struck" : ""}"><span class="n">${i.n}</span><span class="nm">${a}${i.flags.includes("new") ? ' <span class="pill ok">новая</span>' : ""}${i.note ? `<span class="snote">${esc(i.note)}</span>` : ""}</span><span class="kb"><span class="kc${i.flags.includes("key") ? " chg" : ""}">${keyHTML(kn(i.key))}</span>${CFG.cols.bpm && i.bpm ? `<span class="bpm" title="Темп">${esc(i.bpm)}${i.flags.includes("bpm?") ? "?" : ""}${i.meter ? ` <i>${esc(i.meter)}</i>` : ""}</span>` : ""}</span></li>`;
       else out += `<li class="nt">${i.kind === "hymn" ? "Сборник: " : ""}${linkify(i.name)}</li>`;
     });
@@ -1873,7 +1891,7 @@ function songsFull(e) {
       const open = S.noteOpen[e.id + ":" + idx] || i.note;
       const name = adm
         ? `<span class="nmw"><button class="swapb" type="button" data-act="swap" ${A(e)} data-i="${idx}" title="Заменить на другую песню">${esc(i.name)}</button> <button class="mx" type="button" title="Пометка к песне" data-act="noteopen" ${A(e)} data-i="${idx}">${I.pen}</button></span>${open ? `<br><input class="ni" value="${esc(i.note || "")}" placeholder="вступаем вместе, громко…" data-act="snote" ${A(e)} data-i="${idx}">` : ""}`
-        : `<a href="${esc(setUrl(e, si < 0 ? 0 : si + 1))}" target="_blank" rel="noopener" title="${libId(i.name) ? "Открыть чарт в ChartSet" : "Чарта пока нет — откроется название"}">${esc(i.name)}</a>${fl.has("new") ? ' <span class="pill ok">новая</span>' : ""}${i.note ? `<span class="snote">${esc(i.note)}</span>` : ""}`;
+        : `<a href="${esc(setUrl(e, si < 0 ? 0 : si + 1))}" target="_blank" rel="noopener" title="${libId(i.name) ? "Открыть чарт в ChartSet" : libOn() ? "Чарта пока нет — откроется название" : "Откроется в ChartSet"}">${esc(i.name)}</a>${fl.has("new") ? ' <span class="pill ok">новая</span>' : ""}${i.note ? `<span class="snote">${esc(i.note)}</span>` : ""}`;
       const inf = adm ? songInfo(i.name, i.sing, e.date) : null;
       const hintB = (h, act) => (h ? `<button class="hintk" type="button" data-act="${act}" ${A(e)} data-i="${idx}" data-v="${esc(h.v)}" title="${esc(h.title)}">${esc(h.label)}</button>` : "");
       const key = !showKey ? "" : adm
@@ -2007,7 +2025,7 @@ function about() {
     ? `Данные — из <a href="${esc(D.sheet)}" target="_blank" rel="noopener">таблицы</a>${isMain() ? "" : " (не основной — тестовой)"}, загружены в ${at}: ${D.tabs.length} листов, ${D.events.filter((e) => !e.deleted).length} служений. <button class="linkb${S.loading ? " busy" : ""}" type="button" data-act="reload"${S.loading ? " disabled" : ""}>${I.sync} ${S.loading ? "Обновляю…" : "Обновить"}</button>`
     : D.empty ? "" : `Снимок <a href="${esc(D.sheet)}" target="_blank" rel="noopener">таблицы</a> на ${dLong(D.built)}${S.loading ? " — загружаю свежие данные…" : S.loadErr ? ` — свежие не загрузились: ${esc(S.loadErr)}` : !HTTP ? " — свежие данные и вход открываются по http://localhost" : ""}. ${D.tabs.length} листов, из них ${hid} скрытых.`;
   const who = authed() || AUTH.email ? `<span>Вход через Google: ${esc(AUTH.email || "выполнен")} · <button class="linkb" type="button" data-act="signout">Выйти</button></span>` : S.live && !canSign() ? "<span>Вход через Google ещё не настроен — правки остаются на странице, в таблицу не пишутся.</span>" : "";
-  return `<div class="about">${src ? `<span>${src}</span>` : ""}${who}<span>Название песни открывает её чарт в ChartSet, «Сет в ChartSet» — весь сет.</span><span>Версия ${VERSION}</span></div>`;
+  return `<div class="about">${src ? `<span>${src}</span>` : ""}${who}<span>Название песни открывает её чарт в ChartSet, «Сет в ChartSet» — весь сет. ${libOn() ? `Песен с чартом: ${Object.keys(LIB_NAMES).length} — по списку ${LIB_SRC}.` : "Чарты не подключены: нужна ссылка с папкой чартов (&amp;lib=…)."}</span><span>Версия ${VERSION}</span></div>`;
 }
 
 function log(ev, text) { S.changes.push({ date: ev.date, sess: ev.session, text }); }
@@ -2550,7 +2568,16 @@ function history() {
     ppl(s.sing).forEach((n) => { const pk = keyOf(clean(n), "sing"); const b = (h.by[pk] ||= {}); b[key] = (b[key] || 0) + 1; });
   }));
 }
-const LIB_NAMES = {"мне хорошо в доме твоем": "Мне хорошо в доме Твоем", "иешуа": "Иешуа", "славь": "Славь", "пыль": "Пыль", "покой": "Покой", "ряды": "Ряды", "узрю бога": "Узрю Бога", "используй меня бог": "Используй меня Бог", "дождь идет": "Дождь идет", "бог за нас воюет": "Бог за нас воюет", "господь ты пастырь мой": "Господь, Ты Пастырь мой", "любовь не оставит": "Любовь не оставит", "тебе за все слава": "Тебе за всё слава", "свободен я": "Свободен я", "влюбляюсь в тебя": "Влюбляюсь в Тебя", "его имя иисус": "Его имя Иисус", "дух святой в тебе я нуждаюсь": "Дух Святой, в Тебе я нуждаюсь", "держу": "Держу", "мой спаситель жив": "Мой Спаситель жив", "иисус ты любовь моя": "Иисус, Ты любовь моя", "любовью и силой": "Любовью и силой", "поверх": "Поверх", "вовеки": "Вовеки", "бог благой": "Бог Благой", "океаны": "Океаны", "яхве": "Яхве", "я вхожу в святое святых": "Я вхожу в Святое Святых", "в этом месте": "В этом месте", "будь благословен": "Будь благословен", "в реке": "В реке", "целитель": "Целитель", "псалом 61": "Псалом 61", "о благодать": "О, благодать", "все что я могу отдать": "Всё что я могу отдать", "в саду склонился божий сын": "В саду склонился Божий Сын", "благословение": "Благословение", "бог сильный": "Бог сильный", "свежий ветер": "Свежий Ветер", "знаю меня победа ждет": "Знаю меня победа ждет", "все могу": "Все могу", "иешуа старая": "Иешуа (Старая)", "стены все падут": "Стены все падут", "наш бог так велик": "Наш Бог так велик", "жив wake": "Жив (Wake)", "не бойся": "Не бойся", "хвала тебе": "Хвала Тебе", "не умру я": "Не умру я", "воду в вино": "Воду в вино", "о как ты велик": "О, как Ты Велик", "стою": "Стою", "осанна": "Осанна", "трепет": "Трепет", "на шаг ближе": "На шаг ближе"};
+const LIB_NAMES = (SNAP && SNAP.libNames) || {};
+const DRIVE_KEY = "AIzaSyBNtYHwkI9bE6d7V0TnHEMMbKZCoSr49As";
+const LIB_ID = (() => { const v = Q.get("lib"), id = v && (/[-\w]{25,}/.exec(v) || [])[0]; if (id) store.set("lib", id); return id || store.get("lib", ""); })();
+function libSet(x) {
+  Object.keys(LIB).forEach((k) => delete LIB[k]); Object.assign(LIB, x.lib);
+  Object.keys(LIB_NAMES).forEach((k) => delete LIB_NAMES[k]); Object.assign(LIB_NAMES, x.names);
+}
+let LIB_SRC = SNAP && SNAP.library ? "снимка" : "";
+const libOn = () => !!LIB_SRC;
+{ const c = LIB_ID && store.get("libc", null); if (c && c.id === LIB_ID && c.lib) { libSet(c); LIB_SRC = "копии на устройстве"; } }
 history();
 const okKey = (k) => (KEY_RE.test(kn(k)) ? kn(k) : ""), okBpm = (v) => (/^\d{2,3}$/.test(String(v || "").trim()) ? String(v).trim() : "");
 function songInfo(name, sing, before = "9999") {
@@ -2775,7 +2802,7 @@ function bpmPop(anchor, cur, inf, done, o) {
 function impRow(s, n, at, iso) {
   const fl = new Set(s.flags), au = s.auto || {}, known = knownSong(s.name), like = !known && likeSong(s.name), inf = known ? songInfo(s.name, s.sing, iso) : null;
   const pills = [fl.has("new") ? '<span class="pill ok">новая</span>' : "",
-    !known ? (like ? `<button class="pill warn" type="button" data-pe="like" data-v="${esc(like)}" ${at} title="Заменить на «${esc(like)}»">может, «${esc(like)}»?</button>` : '<span class="pill warn" title="Нет ни в графике, ни в базе, ни в чартах">нет в библиотеке</span>') : !libId(s.name) ? '<span class="pill" title="Чарта в BIXCloud нет">нет чарта</span>' : ""].join(" ");
+    !known ? (like ? `<button class="pill warn" type="button" data-pe="like" data-v="${esc(like)}" ${at} title="Заменить на «${esc(like)}»">может, «${esc(like)}»?</button>` : '<span class="pill warn" title="Нет ни в графике, ни в базе, ни в чартах">нет в библиотеке</span>') : libOn() && !libId(s.name) ? '<span class="pill" title="Чарта в BIXCloud нет">нет чарта</span>' : ""].join(" ");
   const tip = (f) => (au[f] ? ` title="Подставлено: ${esc(au[f])} — нажми, чтобы поменять"` : "");
   const who = (k, mk) => { const bad = unknownPpl(s[k]), q = fl.has(k + "?"); return `<td><button class="pe${bad.length || q ? " unk" : ""}" type="button" data-pe="${k}" ${at} title="${bad.length ? "Нет в составе: " + esc(bad.join(", ")) + " — выбрать" : "Выбрать"}">${s[k] ? mk + " " + esc(s[k]) : q ? mk + " ?" : `<span class="ph">${mk}</span>`}</button></td>`; };
   const kh = keyHintOf(s, inf), bh = bpmHintOf(s, inf);
@@ -3310,7 +3337,42 @@ function derive() {
   R = buildRoster(); PEOPLE = peopleList(); history();
 }
 const sigOf = () => JSON.stringify(D.events.filter((e) => !e.deleted).map((e) => [ek(e), FW.groups(e)]));
+const driveList = (id) => "/drive/v3/files?" + new URLSearchParams({ q: `'${id}' in parents and trashed = false`, fields: "files(id,name,mimeType,shortcutDetails)", pageSize: 1000, supportsAllDrives: true, includeItemsFromAllDrives: true });
+async function driveBatch(paths) {
+  const b = "fw" + Math.random().toString(36).slice(2), out = paths.map(() => null);
+  const body = paths.map((p, i) => `--${b}\r\nContent-Type: application/http\r\nContent-ID: <${i}>\r\n\r\nGET ${p}\r\n\r\n`).join("") + `--${b}--`;
+  const r = await fetch(`https://www.googleapis.com/batch/drive/v3?key=${DRIVE_KEY}`, { method: "POST", headers: { "Content-Type": "multipart/mixed; boundary=" + b }, body });
+  if (!r.ok) throw new Error("Диск ответил " + r.status);
+  const rb = (/boundary=([^;\s]+)/.exec(r.headers.get("Content-Type") || "") || [])[1];
+  for (const part of (await r.text()).split("--" + rb)) {
+    const n = /Content-ID:\s*<response-(\d+)>/i.exec(part);
+    if (!n || +n[1] >= out.length) continue;
+    let data = null; try { data = JSON.parse(part.slice(part.indexOf("{"), part.lastIndexOf("}") + 1)); } catch {}
+    out[+n[1]] = { status: +((/HTTP\/[\d.]+ (\d+)/.exec(part) || [])[1] || 0), data };
+  }
+  return out;
+}
+let libAt = 0, libBusy = false;
+async function libLoad() {
+  if (!LIB_ID || !HTTP || MOCK || libBusy || Date.now() - libAt < 60e3) return;
+  libBusy = true;
+  try {
+    const r = await fetch(`https://www.googleapis.com${driveList(LIB_ID)}&key=${DRIVE_KEY}`);
+    if (!r.ok) throw new Error("Диск ответил " + r.status);
+    const root = (await r.json()).files || [], dirs = FW.libDirs(root), subs = {};
+    for (let i = 0; i < dirs.length; i += 100) {
+      const part = dirs.slice(i, i + 100), res = await driveBatch(part.map(driveList));
+      part.forEach((id, k) => { if (!res[k] || res[k].status !== 200) throw new Error(`папка ${id}: ${res[k] ? res[k].status : "нет ответа"}`); subs[id] = res[k].data.files || []; });
+    }
+    const x = FW.libFromDrive(root, subs, norm);
+    libSet(x); store.set("libc", { id: LIB_ID, ...x }); libAt = Date.now(); LIB_SRC = "Диска";
+    history();
+    if (!$("#layer").innerHTML && !typing(document.activeElement)) render();
+  } catch (e) { console.warn("Чарты с Диска не загрузились:", e); }
+  finally { libBusy = false; }
+}
 async function loadLive(quiet) {
+  libLoad();
   if (!HTTP || !SHEET_ID) return;
   S.loading = true; $("#lbar").hidden = false; if (!quiet) render();
   try {
