@@ -338,6 +338,8 @@ body.dnd, body.dnd * { cursor: grabbing !important; user-select: none; -webkit-u
   .chipb .lbl { display: none; }
   .gt th.rl { padding-inline: 8px; }
   .gt th.rl .rn { display: none; }
+  .gt th.rl .rsn { display: block; }  
+  .gt th.rl :is(span, .rlb):has(> .rsn) { flex-direction: column; align-items: center; gap: 1px; }
   .cw { width: 140px; }
   .cfg-row .req span { display: none; }
 }
@@ -639,6 +641,17 @@ html.lock { overflow: hidden; }
 .pk-p .cbx-g { padding: 14px 10px 4px; font-size: 12.5px; }
 .pk-p .pop-a.qb button { padding: 10px 12px; font-size: 15px; }
 
+.rlb { display: inline-flex; align-items: center; gap: inherit; border: 0; background: none; padding: 0; margin: 0; font: inherit; color: inherit; text-align: left; cursor: pointer; border-radius: 6px; }
+.rlb:hover .rn { text-decoration: underline; text-decoration-color: var(--box); }
+.remo { font-size: 16px; line-height: 1; min-width: 18px; text-align: center; }
+.rsn { display: none; font-size: 10.5px; font-weight: 700; line-height: 1.1; color: var(--muted); }  
+tr.addr .addr-i { display: inline-block; min-width: 18px; text-align: center; color: var(--accent-text); font-size: 18px; font-weight: 700; line-height: 1; }
+tr.addr .rlb .rn { color: var(--accent-text); }
+.emos { display: flex; flex-wrap: wrap; gap: 6px; }
+.emos .emo { width: 40px; height: 40px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg2); font-size: 20px; padding: 0; }
+.emos .emo[aria-pressed="true"] { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
+.emo-in { margin-top: 6px; width: 8rem; padding: 8px 10px; border-radius: 9px; border: 1px solid var(--line); background: var(--bg2); color: var(--ink); font-size: 16px; }
+
 .pop:not(.pk) .cbx-pop { position: static; max-height: 16rem; width: auto; padding: 0; border: 0; border-radius: 0; box-shadow: none; background: none; }
 
 @media (max-width: 600px) and (pointer: coarse) {
@@ -755,9 +768,10 @@ FW.readXlsx = function (files) {
     const target = rels[attr(a, "r:id")], path = "xl/" + target.replace(/^\/+/, "").replace(/xl\//g, ""), xml = txt(path);
     const hidden_cols = new Set();
     each(block(xml, "cols"), "col", (ca) => { if (/^(1|true)$/.test(attr(ca, "hidden") || "")) for (let i = +attr(ca, "min") - 1; i < +attr(ca, "max"); i++) hidden_cols.add(i); });
-    const grid = [], cells = {};
+    const grid = [], cells = {}, hidden_rows = new Set();
     each(block(xml, "sheetData"), "row", (ra, rbody) => {
       const ri = +attr(ra, "r") - 1;
+      if (/^(1|true)$/.test(attr(ra, "hidden") || "")) hidden_rows.add(ri);
       each(rbody, "c", (cAttr, cBody) => {
         const ci = colIndex(attr(cAttr, "r")), t = attr(cAttr, "t"), v = /<v(?:\s[^>]*)?>([\s\S]*?)<\/v>/.exec(cBody);
         let text = "", runs = [];
@@ -777,7 +791,7 @@ FW.readXlsx = function (files) {
       each(txt("xl/worksheets/_rels/" + target.split("/").pop() + ".rels"), "Relationship", (x) => (srels[attr(x, "Id")] = attr(x, "Target")));
       each(hl, "hyperlink", (x) => { const ref = attr(x, "ref").split(":")[0], url = srels[attr(x, "r:id")]; if (url) links[(+/\d+/.exec(ref)[0] - 1) + "," + colIndex(ref)] = url; });
     }
-    sheets.push({ name: attr(a, "name"), hidden: attr(a, "state") === "hidden", rows, cells, hidden_cols, links });
+    sheets.push({ name: attr(a, "name"), hidden: attr(a, "state") === "hidden", rows, cells, hidden_cols, hidden_rows, links });
   });
   return sheets;
 };
@@ -787,6 +801,13 @@ const WEEKDAYS = ["ПН", "ВТ", "СР", "ЧТ", "ПТ", "СБ", "ВС"];
 const WD_BY_JS = ["ВС", "ПН", "ВТ", "СР", "ЧТ", "ПТ", "СБ"];
 FW.ROLES = [["AG", "AG"], ["Drums", "Drums"], ["Bass", "Bass"], ["EG", "EG"], ["Keys", "Keys"], ["Violin", "Voilin"], ["FOH", "FOH"]];
 FW.SLOTS = ["⬛", "🟦", "🟥", "⬜"];
+FW.ROLE_KEYS = { ag: "AG", drums: "Drums", bass: "Bass", eg: "EG", keys: "Keys", voilin: "Violin", violin: "Violin", foh: "FOH" };
+FW.rowName = (label) => (label || "").replace(/^[^\p{L}\p{N}]+/u, "").trim();
+FW.rowEmoji = (label) => ((/^[^\p{L}\p{N}]*/u.exec(label || "") || [""])[0]).trim();
+FW.slotOf = (label) => (label || "").replace(/🎤|\uFE0F|\s+/gu, "");
+FW.roleId = (name) => (name ? FW.ROLE_KEYS[name.toLowerCase()] || "x:" + name.toLowerCase().replace(/ё/g, "е").replace(/\s+/g, " ").trim() : "");
+FW.rowLabel = (kind, emoji, name) => (kind === "mic" ? "🎤" + (emoji || "") : [emoji, name].filter(Boolean).join(" "));
+const WIN = 40;
 const DATE = /^\s*(\d{2})\.(\d{2})\.(\d{4})/;
 const KEY = /^([A-H](?:#|b)?m?)$/;
 const BPM = /^(\d{2,3})\s*(\?)?\s*(?:\(([^)]*)\))?\s*(\?)?$/;
@@ -940,39 +961,47 @@ function parseSongs(cell, runs, style) {
   return [items, names, status];
 }
 
-function layoutOf(rows) {
-  const L = { songs: -1, roles: {}, mics: {}, xvoc: [], dress: -1, note: -1, last: 0 };
+function layoutOf(rows, hid) {
+  hid = hid || new Set();
+  const L = { songs: -1, roles: {}, mics: {}, xvoc: [], dress: -1, note: -1, last: 0, rows: [] };
   let micSeen = false, foh = false;
-  rows.slice(1, 24).forEach((r, k) => {
+  rows.slice(1, WIN).forEach((r, k) => {
     const ri = k + 1, label = (r[0] || "").trim();
     L.last = ri;
-    if (label.includes("🎤")) { micSeen = true; const slot = FW.SLOTS.find((s) => label.includes(s)) || ""; if (slot && !(slot in L.mics)) L.mics[slot] = ri; return; }
+    if (label.includes("🎤")) {
+      micSeen = true; const slot = FW.slotOf(label);
+      if (slot && !(slot in L.mics)) { L.mics[slot] = ri; L.rows.push({ ri, kind: "mic", id: slot, label, emoji: label.replace(/🎤/g, "").trim(), hidden: hid.has(ri) }); }
+      return;
+    }
     if (label.startsWith("Song list")) { L.songs = ri; return; }
-    const role = FW.ROLES.find(([, key]) => label.includes(key));
-    if (role) { if (!(role[0] in L.roles)) L.roles[role[0]] = ri; if (role[0] === "FOH") foh = true; return; }
-    if (label.includes("Dress")) L.dress = ri;
-    else if (label.includes("Note")) L.note = ri;
-    else if (!label && micSeen && !foh) L.xvoc.push(ri);
+    if (!label) { if (micSeen && !foh) L.xvoc.push(ri); return; }
+    if (label.includes("Dress")) { L.dress = ri; return; }
+    if (label.includes("Note")) { L.note = ri; return; }
+    const name = FW.rowName(label), id = FW.roleId(name);
+    if (!id) return;
+    if (id === "FOH") foh = true;
+    if (!(id in L.roles)) { L.roles[id] = ri; L.rows.push({ ri, kind: "role", id, label, name, emoji: FW.rowEmoji(label), base: !id.startsWith("x:"), hidden: hid.has(ri) }); }
   });
   return L;
 }
+FW.layoutOf = layoutOf;
 
 function parseSchedule(sh) {
   const rows = sh.rows, events = [], width = rows.reduce((w, r) => Math.max(w, r.length), 0);
-  const layout = layoutOf(rows);
+  const layout = layoutOf(rows, sh.hidden_rows), roleAt = {};
+  layout.rows.forEach((x) => { if (x.kind === "role") roleAt[x.ri] = x.id; });
   for (let c = 1; c < width; c++) {
     const head = c < (rows[0] || []).length ? rows[0][c] : "";
     const ev = parseHead(head, sh.name);
     if (!ev) continue;
-    Object.assign(ev, { tab: sh.name, tabHidden: sh.hidden, colHidden: sh.hidden_cols.has(c), items: [], sections: {}, status: "", roles: {}, vocals: [], extraVocals: [], dress: "", notes: [], other: [], songsLink: "" });
+    Object.assign(ev, { tab: sh.name, tabHidden: sh.hidden, colHidden: sh.hidden_cols.has(c), items: [], sections: {}, status: "", roles: {}, vocals: [], extraVocals: [], dress: "", notes: [], other: [], songsLink: "", mslots: Object.keys(layout.mics) });
     let seenVocal = false;
-    rows.slice(1, 24).forEach((r, k) => {
+    rows.slice(1, WIN).forEach((r, k) => {
       const ri = k + 1, label = (r[0] || "").trim(), v = c < r.length ? r[c].trim() : "";
       const cell = sh.cells[ri + "," + c] || { style: {}, runs: [] };
       if (label.includes("🎤")) {
         seenVocal = true;
-        const slot = FW.SLOTS.find((s) => label.includes(s)) || "";
-        if (v) ev.vocals.push({ slot, name: v });
+        if (v) ev.vocals.push({ slot: FW.slotOf(label), name: v });
         return;
       }
       if (label.startsWith("Song list")) {
@@ -980,8 +1009,8 @@ function parseSchedule(sh) {
         ev.songsLink = sh.links[ri + "," + c] || "";
         return;
       }
-      const role = FW.ROLES.find(([, key]) => label.includes(key));
-      if (role) { ev.roles[role[0]] = v === "-" || v === "—" ? "" : v; return; }
+      const rid = roleAt[ri];
+      if (rid) { ev.roles[rid] = v === "-" || v === "—" ? "" : v; return; }
       if (label.includes("Dress")) ev.dress = v;
       else if (label.includes("Note")) {
         ev.notes = v.split("\n").map((x) => x.trim()).filter(Boolean);
@@ -1058,7 +1087,7 @@ const kn = (k) => (k || "").replace(/‼️|‼/g, "").trim();
 const WD_RU = ["ВС", "ПН", "ВТ", "СР", "ЧТ", "ПТ", "СБ"];
 const wdOf = (iso) => WD_RU[new Date(iso + "T12:00:00Z").getUTCDay()];
 FW.prep = function (ev) {
-  ev.meet = ev.meet || ""; ev.extra = ev.extra || {};
+  ev.meet = ev.meet || ""; ev.extra = ev.extra || {}; ev.mslots = ev.mslots || FW.SLOTS.slice();
   const groups = [...new Set([...ev.items.map((it) => it.group), ...Object.keys(ev.sections || {}).map(Number)])].sort((a, b) => a - b);
   ev.blocks = ev.blocks || (groups.length ? groups : [0]).map((g) => ({ id: g, name: (ev.sections || {})[g] || "" }));
   ev.note = ev.note ?? ev.notes.join("\n");
@@ -1084,10 +1113,11 @@ FW.groups = function (ev) {
     head: [ev.date, ev.title || "", ev.time || "", ev.place || "", ev.session || null, ev.meet || ""],
     songs: JSON.stringify(songsKey(ev)), dress: ev.dress || "", note: ev.note || "", xvoc: ev.extraVocals.join("\n"),
   };
-  FW.ROLES.forEach(([id]) => (g["r:" + id] = ev.roles[id] || ""));
-  FW.SLOTS.forEach((s) => (g["m:" + s] = (ev.vocals.find((v) => v.slot === s) || {}).name || ""));
+  Object.keys(ev.roles).forEach((id) => (g["r:" + id] = ev.roles[id] || ""));
+  [...new Set([...(ev.mslots || FW.SLOTS), ...ev.vocals.map((v) => v.slot)])].forEach((s) => (g["m:" + s] = (ev.vocals.find((v) => v.slot === s) || {}).name || ""));
   return g;
 };
+FW.diff = (g, o) => [...new Set([...Object.keys(g), ...Object.keys(o || {})])].filter((k) => JSON.stringify(g[k] ?? "") !== JSON.stringify((o || {})[k] ?? ""));
 FW.songsCell = function (ev) {
   const lines = [], struck = [];
   if (ev.status) lines.push(ev.status);
@@ -1123,8 +1153,8 @@ function cellsFor(ev, L, only, was) {
   const out = [], put = (ri, text, runs = []) => { if (ri >= 0) out.push([ri, { text, runs }]); }, want = (k) => !only || only.has(k);
   if (want("head")) put(0, FW.headCell(ev, was));
   if (want("songs")) { const c = FW.songsCell(ev); put(L.songs, c.text, c.runs); }
-  FW.ROLES.forEach(([id]) => { if (want("r:" + id)) put(L.roles[id] ?? -1, ev.roles[id] || ""); });
-  FW.SLOTS.forEach((s) => { if (want("m:" + s)) put(L.mics[s] ?? -1, (ev.vocals.find((v) => v.slot === s) || {}).name || ""); });
+  Object.keys(ev.roles).forEach((id) => { if (want("r:" + id)) put(L.roles[id] ?? -1, ev.roles[id] || ""); });
+  Object.keys(L.mics).forEach((s) => { if (want("m:" + s)) put(L.mics[s], (ev.vocals.find((v) => v.slot === s) || {}).name || ""); });
   if (want("xvoc") && L.xvoc.length) {
     const x = ev.extraVocals, k = L.xvoc.length;
     L.xvoc.forEach((ri, j) => put(ri, j < k - 1 ? x[j] || "" : x.slice(j).join(", ")));
@@ -1140,20 +1170,66 @@ const ekey = (date, session) => date + "|" + String(session || 0);
 const cellReq = (sheetId, r, c, v) => ({ updateCells: { range: { sheetId, startRowIndex: r, endRowIndex: r + 1, startColumnIndex: c, endColumnIndex: c + 1 },
   rows: [{ values: [v.text ? { userEnteredValue: { stringValue: v.text }, textFormatRuns: v.runs } : {}] }], fields: "userEnteredValue,textFormatRuns" } });
 const dimRange = (sheetId, c) => ({ sheetId, dimension: "COLUMNS", startIndex: c, endIndex: c + 1 });
+const rowRange = (sheetId, r) => ({ sheetId, dimension: "ROWS", startIndex: r, endIndex: r + 1 });
+FW.tabMonth = tabMonth;
+FW.srcTab = (sheets, ym) => {
+  const months = sheets.filter((s) => tabMonth(s.name) && layoutOf(s.rows).songs > 0).sort((a, b) => (tabMonth(a.name) < tabMonth(b.name) ? -1 : 1));
+  return months.filter((s) => tabMonth(s.name) < ym).pop() || months[months.length - 1];
+};
+FW.rowOps = function (sheet, ops) {
+  const w = sheet.rows.reduce((m, r) => Math.max(m, r.length), 1), rows = sheet.rows.map((r) => r.slice());
+  let hid = new Set(sheet.hidden_rows || []);
+  const from = rows.map((_, i) => i);
+  for (const o of ops || []) {
+    if (o.op === "insert") {
+      while (rows.length < o.at) { rows.push(Array(w).fill("")); from.push(-2); }
+      const row = Array(w).fill(""); row[0] = o.label;
+      rows.splice(o.at, 0, row); from.splice(o.at, 0, -1);
+      hid = new Set([...hid].map((i) => (i >= o.at ? i + 1 : i)));
+    } else if (o.op === "hide") hid.add(o.ri);
+    else if (o.op === "show") hid.delete(o.ri);
+    else if (o.op === "label") { while (rows.length <= o.ri) { rows.push(Array(w).fill("")); from.push(-2); } rows[o.ri][0] = o.label; }
+  }
+  return { sheet: { ...sheet, rows, hidden_rows: hid }, from };
+};
+FW.rowReqs = (sheetId, ops) => (ops || []).flatMap((o) =>
+  o.op === "insert" ? [{ insertDimension: { range: rowRange(sheetId, o.at), inheritFromBefore: true } },
+    { updateDimensionProperties: { range: rowRange(sheetId, o.at), properties: { hiddenByUser: false }, fields: "hiddenByUser" } }, cellReq(sheetId, o.at, 0, { text: o.label, runs: [] })]
+  : o.op === "hide" || o.op === "show" ? [{ updateDimensionProperties: { range: rowRange(sheetId, o.ri), properties: { hiddenByUser: o.op === "hide" }, fields: "hiddenByUser" } }]
+  : o.op === "label" ? [cellReq(sheetId, o.ri, 0, { text: o.label, runs: [] })] : []);
 FW.plan = function (events, book, o = {}) {
-  const reqs = [], expect = [], summary = [], layouts = {}, cols = {}, sh = {};
+  const reqs = [], expect = [], summary = [], layouts = {}, cols = {}, sh = {}, orig = {}, from = {}, rowOps = o.rowOps || {}, lost = [];
   book.sheets.forEach((s) => { sh[s.name] = s; });
   const ids = { ...book.ids };
   const sid = (tab) => { if (!(tab in ids)) throw new Error(`Нет листа «${tab}» в таблице`); return ids[tab]; };
+  const labelsChecked = new Set();
+  const expLabels = (name) => {
+    const s0 = book.sheets.find((s) => s.name === name);
+    if (!s0 || labelsChecked.has(name)) return;
+    labelsChecked.add(name);
+    for (let r = 1; r <= layoutOf(s0.rows).last; r++) expect.push({ tab: name, row: r, col: 0, text: (s0.rows[r] || [])[0] || "" });
+  };
+  Object.entries(rowOps).forEach(([tab, list]) => {
+    if (!list || !list.length || !sh[tab]) return;
+    const r = FW.rowOps(sh[tab], list);
+    expLabels(tab);
+    reqs.push(...FW.rowReqs(sid(tab), list));
+    orig[tab] = sh[tab]; sh[tab] = r.sheet; from[tab] = r.from;
+    summary.push({ tab, what: "строки" });
+  });
   const colsOf = (tab) => (cols[tab] ||= (sh[tab].rows[0] || []).map((h, c) => { const m = c && DATE.exec(h || ""); return m ? { k: ekey(`${m[3]}-${m[2]}-${m[1]}`, (parseHead(h, tab) || {}).session) } : null; }));
-  const lay = (tab) => (layouts[tab] ||= layoutOf(sh[tab].rows));
+  const lay = (tab) => (layouts[tab] ||= layoutOf(sh[tab].rows, sh[tab].hidden_rows));
   const text = (tab, r, c) => ((sh[tab].rows[r] || [])[c] || "");
-  const exp = (tab, r, c) => expect.push({ tab, row: r, col: c, text: text(tab, r, c) });
+  const exp = (tab, r, c) => {
+    const r0 = from[tab] ? from[tab][r] : r;
+    if (r0 == null || r0 < 0) return;
+    expect.push({ tab, row: r0, col: c, text: (((orig[tab] || sh[tab]).rows[r0] || [])[c]) || "" });
+  };
   const live = events.filter((e) => !e.deleted), dels = [], creates = [];
   events.forEach((e) => {
     if (!e.src) { if (!e.deleted) creates.push(e); return; }
     if (e.deleted) { dels.push(e); return; }
-    const g = FW.groups(e), ch = new Set(Object.keys(g).filter((k) => JSON.stringify(g[k]) !== JSON.stringify(e.orig[k])));
+    const g = FW.groups(e), ch = new Set(FW.diff(g, e.orig));
     if (!ch.size) return;
     const moved = ch.has("head") && (tabMonth(e.src.tab) !== e.date.slice(0, 7) || outOfOrder(e));
     if (moved) { dels.push(e); creates.push(e); summary.push({ ev: e, what: "перенос" }); return; }
@@ -1190,25 +1266,35 @@ FW.plan = function (events, book, o = {}) {
       reqs.push({ updateDimensionProperties: { range: dimRange(sid(tab), at), properties: { hiddenByUser: false }, fields: "hiddenByUser" } });
       cs.splice(at, 0, { k });
     }
-    cellsFor(e, lay(tab), null, null).forEach(([r, v]) => reqs.push(cellReq(sid(tab), r, at, v)));
+    const L = lay(tab);
+    cellsFor(e, L, null, null).forEach(([r, v]) => reqs.push(cellReq(sid(tab), r, at, v)));
+    Object.entries(e.roles).forEach(([id, v]) => { if (v && !(id in L.roles)) lost.push({ ev: e, tab, kind: "role", id, value: v }); });
+    e.vocals.forEach((v) => { if (v.name && !(v.slot in L.mics)) lost.push({ ev: e, tab, kind: "mic", id: v.slot, value: v.name }); });
     if (!summary.some((x) => x.ev === e)) summary.push({ ev: e, what: "новое" });
   });
   function newTab(tab, ym) {
-    const months = book.sheets.filter((s) => tabMonth(s.name) && layoutOf(s.rows).songs > 0).sort((a, b) => (tabMonth(a.name) < tabMonth(b.name) ? -1 : 1));
-    const src = months.filter((s) => tabMonth(s.name) < ym).pop() || months[months.length - 1];
-    if (!src) throw new Error("Нет листа месяца, с которого скопировать новый");
+    const src0 = FW.srcTab(book.sheets, ym);
+    if (!src0) throw new Error("Нет листа месяца, с которого скопировать новый");
+    const src = sh[src0.name];
     let id = 1000 + Math.floor(Math.random() * 9e8);
     while (Object.values(ids).includes(id)) id++;
     ids[tab] = id;
-    const srcCols = (src.rows[0] || []).map((h, c) => (c && DATE.test(h || "") ? c : 0)).filter(Boolean), L = layoutOf(src.rows);
-    const pos = book.sheets.indexOf(src) + 1;
+    const srcCols = (src.rows[0] || []).map((h, c) => (c && DATE.test(h || "") ? c : 0)).filter(Boolean);
+    let L = layoutOf(src.rows, src.hidden_rows);
+    const pos = book.sheets.indexOf(src0) + 1;
     reqs.push({ duplicateSheet: { sourceSheetId: sid(src.name), insertSheetIndex: pos, newSheetId: id, newSheetName: tab } });
     reqs.push({ updateSheetProperties: { properties: { sheetId: id, hidden: false }, fields: "hidden" } });
     for (let c = Math.max(...srcCols, 1); c >= 2; c--) if (srcCols.includes(c)) reqs.push({ deleteDimension: { range: dimRange(id, c) } });
     reqs.push({ updateCells: { range: { sheetId: id, startRowIndex: 0, endRowIndex: L.last + 1, startColumnIndex: 1, endColumnIndex: 2 }, rows: Array.from({ length: L.last + 1 }, () => ({ values: [{}] })), fields: "userEnteredValue,textFormatRuns" } });
     reqs.push({ updateDimensionProperties: { range: dimRange(id, 1), properties: { hiddenByUser: false }, fields: "hiddenByUser" } });
     const rows = src.rows.map((r) => [r[0] || "", ""]);
-    sh[tab] = { name: tab, rows, cells: {}, hidden_cols: new Set(), links: {}, hidden: false };
+    sh[tab] = { name: tab, rows, cells: {}, hidden_cols: new Set(), hidden_rows: new Set(src.hidden_rows || []), links: {}, hidden: false };
+    if (rowOps[tab] && rowOps[tab].length) {
+      expLabels(src0.name);
+      reqs.push(...FW.rowReqs(id, rowOps[tab]));
+      sh[tab] = FW.rowOps(sh[tab], rowOps[tab]).sheet;
+      L = layoutOf(sh[tab].rows, sh[tab].hidden_rows);
+    }
     layouts[tab] = L;
     cols[tab] = [null, { free: true }];
     summary.push({ tab, what: "лист" });
@@ -1231,7 +1317,7 @@ FW.plan = function (events, book, o = {}) {
       rows: Array.from({ length: n }, (_, i) => ({ values: Array.from({ length: w }, (_, c) => { const t = (rows[i] || [])[c] || ""; return t ? { userEnteredValue: { stringValue: t } } : {}; }) })), fields: "userEnteredValue" } });
     summary.push({ tab: T, what: "состав" });
   }
-  return { requests: reqs, expect, summary, ids };
+  return { requests: reqs, expect, summary, ids, lost };
 };
 
 FW.apply = function (book, requests) {
@@ -1244,6 +1330,16 @@ FW.apply = function (book, requests) {
       s[key] = out;
     }
     s.hidden_cols = new Set([...s.hidden_cols].filter((c) => !(d < 0 && c === at)).map((c) => (c >= at ? c + d : c)));
+  };
+  const shiftRow = (s, at, d) => {
+    const w = s.rows.reduce((m, r) => Math.max(m, r.length), 1);
+    if (d > 0) { while (s.rows.length < at) s.rows.push(Array(w).fill("")); s.rows.splice(at, 0, Array(w).fill("")); } else s.rows.splice(at, 1);
+    for (const key of ["cells", "links"]) {
+      const out = {};
+      Object.entries(s[key]).forEach(([k, v]) => { const [r, c] = k.split(",").map(Number); if (d < 0 && r === at) return; out[(r >= at ? r + d : r) + "," + c] = v; });
+      s[key] = out;
+    }
+    s.hidden_rows = new Set([...(s.hidden_rows || [])].filter((r) => !(d < 0 && r === at)).map((r) => (r >= at ? r + d : r)));
   };
   for (const q of requests) {
     const [type, a] = Object.entries(q)[0], S = byId();
@@ -1259,16 +1355,19 @@ FW.apply = function (book, requests) {
         fr.forEach((x, k) => { const end = k + 1 < fr.length ? fr[k + 1].startIndex : t.length; if (k === 0 && x.startIndex > 0) runs.push([t.slice(0, x.startIndex), { color: "000000" }]); runs.push([t.slice(x.startIndex, end), x.format.strikethrough ? { s: true, color: "000000" } : { color: "000000" }]); });
         s.cells[r + "," + c] = { style: {}, runs };
       }));
-    } else if (type === "insertDimension") shift(S[a.range.sheetId], a.range.startIndex, 1);
-    else if (type === "deleteDimension") shift(S[a.range.sheetId], a.range.startIndex, -1);
-    else if (type === "updateDimensionProperties") { if (a.properties.hiddenByUser === false) S[a.range.sheetId].hidden_cols.delete(a.range.startIndex); }
+    } else if (type === "insertDimension") (a.range.dimension === "ROWS" ? shiftRow : shift)(S[a.range.sheetId], a.range.startIndex, 1);
+    else if (type === "deleteDimension") (a.range.dimension === "ROWS" ? shiftRow : shift)(S[a.range.sheetId], a.range.startIndex, -1);
+    else if (type === "updateDimensionProperties") {
+      const s = S[a.range.sheetId], set = a.range.dimension === "ROWS" ? (s.hidden_rows ||= new Set()) : s.hidden_cols;
+      if (a.properties.hiddenByUser) set.add(a.range.startIndex); else set.delete(a.range.startIndex);
+    }
     else if (type === "updateSheetProperties") { if ("hidden" in a.properties) S[a.properties.sheetId].hidden = a.properties.hidden; }
     else if (type === "duplicateSheet") {
-      const src = S[a.sourceSheetId], copy = { name: a.newSheetName, hidden: src.hidden, rows: src.rows.map((r) => r.slice()), cells: JSON.parse(JSON.stringify(src.cells)), hidden_cols: new Set(src.hidden_cols), links: { ...src.links } };
+      const src = S[a.sourceSheetId], copy = { name: a.newSheetName, hidden: src.hidden, rows: src.rows.map((r) => r.slice()), cells: JSON.parse(JSON.stringify(src.cells)), hidden_cols: new Set(src.hidden_cols), hidden_rows: new Set(src.hidden_rows || []), links: { ...src.links } };
       book.sheets.splice(Math.min(a.insertSheetIndex, book.sheets.length), 0, copy);
       book.ids[a.newSheetName] = a.newSheetId;
     } else if (type === "addSheet") {
-      book.sheets.push({ name: a.properties.title, hidden: false, rows: [], cells: {}, hidden_cols: new Set(), links: {} });
+      book.sheets.push({ name: a.properties.title, hidden: false, rows: [], cells: {}, hidden_cols: new Set(), hidden_rows: new Set(), links: {} });
       book.ids[a.properties.title] = a.properties.sheetId;
     } else throw new Error("apply: не знаю запрос " + type);
   }
@@ -1294,6 +1393,7 @@ const store = { get(k, d) { try { const v = localStorage.getItem("fwg." + k); re
   set(k, v) { try { localStorage.setItem("fwg." + k, JSON.stringify(v)); } catch {} } };
 const TODAY = new Date().toLocaleDateString("en-CA");
 const MON_G = ["января", "февраля", "марта", "апреля", "мая", "июня", "июля", "августа", "сентября", "октября", "ноября", "декабря"];
+const MON_P = ["январе", "феврале", "марте", "апреле", "мае", "июне", "июле", "августе", "сентябре", "октябре", "ноябре", "декабре"];
 const MON_N = ["Январь", "Февраль", "Март", "Апрель", "Май", "Июнь", "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"];
 const WD_S = ["вс", "пн", "вт", "ср", "чт", "пт", "сб"];
 const KEYS = ["C", "C#", "Db", "D", "D#", "Eb", "E", "F", "F#", "G", "G#", "Ab", "A", "Bb", "B", "H"];
@@ -1319,7 +1419,7 @@ const DEF_CFG = {
 let CFG = store.get("cfg", null) || JSON.parse(JSON.stringify(DEF_CFG));
 const saveCfg = () => store.set("cfg", CFG);
 
-const VERSION = "0.10.0";
+const VERSION = "0.11.0";
 const FINE = matchMedia("(pointer: fine)").matches;
 const Q = new URLSearchParams(location.search);
 const S = { live: false, view: Q.get("view") || store.get("view", "grid"), rf: "all", rq: "", showOff: false, me: Q.get("me") ?? store.get("me", ""), admin: Q.get("admin") === "1", month: Q.get("m") || "", hidePast: false, open: new Set(), allOpen: Q.get("open") === "all", changes: [], noteOpen: {} };
@@ -1371,7 +1471,7 @@ function buildRoster() {
     if (ev.date <= TODAY) { if (ev.date > p.past) p.past = ev.date; } else if (!p.next || ev.date < p.next) p.next = ev.date;
   });
   D.events.filter((e) => !e.deleted).forEach((ev) => {
-    CFG.roles.forEach((r) => touch(ev.roles[r.id], r.id, ev));
+    Object.keys(ev.roles).forEach((id) => touch(ev.roles[id], roleKind(id), ev));
     ev.vocals.forEach((v) => touch(v.name, "voc", ev)); ev.extraVocals.forEach((n) => touch(n, "voc", ev));
     songs(ev).forEach((s) => { touch(s.pray, "pray", ev); touch(s.sing, "sing", ev); });
   });
@@ -1475,8 +1575,8 @@ function personInp(e, act, role, val, attrs, label, ph = "—") {
   return `<input class="cbx" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-label="${esc(label)}" data-act="${act}" ${A(e)} ${attrs} data-ab="${esc(role)}" value="${esc(val ? showN(val, role) : "")}" placeholder="${esc(ph)}" autocomplete="off" autocapitalize="words" spellcheck="false">`;
 }
 function personSel(e, key, val, act = "role") {
-  const role = act === "voc" ? "voc" : key;
-  return personInp(e, act, role, val, `data-r="${esc(key)}"`, act === "voc" ? "Вокал" : (CFG.roles.find((r) => r.id === key) || {}).name || key);
+  const role = act === "voc" ? "voc" : roleKind(key);
+  return personInp(e, act, role, val, `data-r="${esc(key)}"`, act === "voc" ? "Вокал" : roleInfo(key).name);
 }
 function whoSel(e, idx, f, val) { return personInp(e, "who", f, val, `data-f="${f}" data-i="${idx}"`, f === "pray" ? "Молится" : "Ведёт", f === "pray" ? "🙏 —" : "🎤 —"); }
 function canonPeople(v, role) {
@@ -1797,16 +1897,22 @@ function grid() {
     const body = isOpen(e) ? songsFull(e) : songsCompact(e);
     return td(e, body || `<span class="muted">${esc(e.status || "—")}</span>`, body ? "" : "none");
   }).join("");
-  const roleRows = CFG.roles.filter((r) => r.req || evs.some((e) => e.roles[r.id]) || S.admin).map((r) => `<tr><th class="rl"><span>${roleIco(r.id, r.c, 18) || roleBdg(r, true)}<span class="rn">${esc(r.name)}</span></span></th>${hc}${evs.map((e) => {
-    const v = e.roles[r.id] || "";
-    if (S.admin) return td(e, personSel(e, r.id, v));
-    return td(e, noneEv(e) ? "" : v ? esc(showN(v, r.id)) : r.req ? "нет" : "", noneEv(e) ? "none" : !v ? (r.req ? "empty" : "") : ask(v) ? "ask" : meIn(v, r.id) ? "me" : "");
-  }).join("")}</tr>`).join("");
-  const vocRows = CFG.mics.map((m) => `<tr><th class="rl" title="${MIC_PAL[m.c]}"><span>${mic(m.c)}</span></th>${hc}${evs.map((e) => {
-    const v = e.vocals.find((x) => x.slot === m.slot);
-    if (S.admin) return td(e, personSel(e, m.slot, v ? v.name : "", "voc"));
+  const ML = monthLay(S.month), rowsOf = (k) => ML.L.rows.filter((x) => x.kind === k && (!x.hidden || evs.some((e) => (k === "role" ? e.roles[x.id] : e.vocals.some((v) => v.slot === x.id)))));
+  const roleList = ML ? rowsOf("role").map((x) => ({ ...x, r: roleInfo(x.id, x) }))
+    : CFG.roles.filter((r) => r.req || evs.some((e) => e.roles[r.id]) || S.admin).map((r) => ({ id: r.id, r: roleInfo(r.id) }));
+  const rowHead = (x, inner, title) => S.admin && ML ? `<th class="rl"><button class="rlb" type="button" data-act="rowedit" data-ri="${x.ri}" title="${esc(title)} — переименовать, сменить значок, убрать в этом месяце">${inner}</button></th>` : `<th class="rl" title="${esc(title)}"><span>${inner}</span></th>`;
+  const addRow = (k, label) => S.admin && ML ? `<tr class="addr"><th class="rl"><button class="rlb add" type="button" data-act="rowadd" data-k="${k}" title="Добавить строку в этом месяце: ${label.toLowerCase()}"><span class="addr-i">+</span><span class="rn">${label}</span></button></th>${hc}${evs.map((e) => td(e, "", noneEv(e) ? "none" : "")).join("")}</tr>` : "";
+  const roleRows = roleList.map(({ id, r }) => `<tr>${rowHead({ ri: r.ri }, `${r.ico}<span class="rn">${esc(r.name)}</span>`, r.name)}${hc}${evs.map((e) => {
+    const v = e.roles[id] || "";
+    if (S.admin) return td(e, personSel(e, id, v));
+    return td(e, noneEv(e) ? "" : v ? esc(showN(v, r.kind)) : r.req ? "нет" : "", noneEv(e) ? "none" : !v ? (r.req ? "empty" : "") : ask(v) ? "ask" : meIn(v, r.kind) ? "me" : "");
+  }).join("")}</tr>`).join("") + addRow("role", "Инструмент");
+  const micList = ML ? rowsOf("mic") : CFG.mics.map((m) => ({ id: m.slot }));
+  const vocRows = micList.map((x) => { const m = micInfo(x.id); return `<tr>${rowHead(x, m.ico, m.name)}${hc}${evs.map((e) => {
+    const v = e.vocals.find((y) => y.slot === x.id);
+    if (S.admin) return td(e, personSel(e, x.id, v ? v.name : "", "voc"));
     return td(e, v ? esc(showN(v.name, "voc")) : "", noneEv(e) ? "none" : v && meIn(v.name, "voc") ? "me" : "");
-  }).join("")}</tr>`).join("") +
+  }).join("")}</tr>`; }).join("") + addRow("mic", "Микрофон") +
     (S.admin || evs.some((e) => e.extraVocals.length) ? `<tr><th class="rl" title="Голос без своего микрофона"><span>${mic("")}</span></th>${hc}${evs.map((e) => td(e, S.admin && isOpen(e)
       ? `<div class="vchips">${e.extraVocals.map((n, k) => `<span class="vchip">${esc(n)}<button class="mx" type="button" data-act="xvdel" ${A(e)} data-i="${k}">×</button></span>`).join("")}</div><input class="full cbx" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-label="Добавить голос" data-ab="voc" autocomplete="off" spellcheck="false" placeholder="+ голос" data-act="xvadd" ${A(e)} style="margin-top:4px">`
       : esc(e.extraVocals.map(showN).join(", ")), e.extraVocals.some(meIn) ? "me" : "")).join("")}</tr>` : "");
@@ -1929,6 +2035,8 @@ function act(el, type) {
     return;
   }
   if (a === "impall" && click) return importSheet(null);
+  if (a === "rowedit" && click) return rowSheet(+el.dataset.ri);
+  if (a === "rowadd" && click) return rowSheet(null, el.dataset.k);
   if (!ev) return;
   const it = ev.items[i];
   if (change) {
@@ -1998,12 +2106,12 @@ function act(el, type) {
   else if (a === "snote" && change) { it.note = el.value.trim(); log(ev, `${it.name}: пометка «${it.note || "—"}»`); }
   else if (a === "sx" && change) { it.extra[el.dataset.x] = el.value; const c = CFG.songCustom.find((x) => x.id === el.dataset.x); log(ev, `${it.name}: ${c ? c.name : ""} — ${el.value || "—"}`); }
   else if (a === "who" && change) { const f = el.dataset.f, was = it[f] || "—", nv = canonPeople(el.value, f); if (nv === (it[f] || "")) return render(); it[f] = nv; it.flags = it.flags.filter((x) => x !== f && x !== f + "?"); log(ev, `${it.name}: ${f === "pray" ? "молится" : "ведёт"} ${was} → ${nv || "—"}`); }
-  else if (a === "role" && change) { const r = CFG.roles.find((x) => x.id === el.dataset.r), was = ev.roles[r.id] || "—", nv = canonPeople(el.value, r.id); if (nv === (ev.roles[r.id] || "")) return render(); ev.roles[r.id] = nv; log(ev, `${r.name}: ${was} → ${nv || "—"}`); }
+  else if (a === "role" && change) { const r = { id: el.dataset.r, ...roleInfo(el.dataset.r) }, was = ev.roles[r.id] || "—", nv = canonPeople(el.value, r.kind); if (nv === (ev.roles[r.id] || "")) return render(); ev.roles[r.id] = nv; log(ev, `${r.name}: ${was} → ${nv || "—"}`); }
   else if (a === "voc" && change) {
-    const slot = el.dataset.r, m = CFG.mics.find((x) => x.slot === slot), v = ev.vocals.find((x) => x.slot === slot), was = v ? v.name : "—", nv = canonPeople(el.value, "voc");
+    const slot = el.dataset.r, v = ev.vocals.find((x) => x.slot === slot), was = v ? v.name : "—", nv = canonPeople(el.value, "voc");
     if (nv === (v ? v.name : "")) return render();
     if (v) v.name = nv; else ev.vocals.push({ slot, name: nv });
-    ev.vocals = ev.vocals.filter((x) => x.name); log(ev, `вокал (${MIC_PAL[m.c].toLowerCase()}): ${was} → ${nv || "—"}`);
+    ev.vocals = ev.vocals.filter((x) => x.name); log(ev, `вокал (${micInfo(slot).short}): ${was} → ${nv || "—"}`);
   } else if (a === "xvadd" && change) { const nv = canonPeople(el.value, "voc"); if (!nv) return; ev.extraVocals.push(nv); log(ev, `+ голос: ${nv}`); }
   else if (a === "xvdel" && click) { const n = ev.extraVocals.splice(i, 1)[0]; log(ev, `− голос: ${n}`); }
   else if (a.startsWith("f:") && change) { const f = a.slice(2), names = { meet: "сбор", time: "начало", place: "место", dress: "дресс-код", note: "пометки" }; ev[f] = el.value; log(ev, `${names[f]}: ${el.value.split("\n")[0] || "—"}`); }
@@ -2045,17 +2153,17 @@ function cfgSheet() {
   const roles = CFG.roles.map((r, k) => `<div class="cfg-row">${RI[r.id] ? `<span class="cfg-ico">${roleIco(r.id, r.c, 22)}</span>` : roleBdg(r)}<input type="text" value="${esc(r.name)}" data-c="rname" data-k="${k}" aria-label="Название роли">${RI[r.id] ? "<span></span>" : `<input type="text" value="${esc(r.b)}" maxlength="3" data-c="rb" data-k="${k}" aria-label="Значок">`}
     <label class="req">${sw(r.req, "rreq", ` data-k="${k}"`)}<span>всегда</span></label>
     <span class="stp"><button type="button" data-c="rup" data-k="${k}" ${k ? "" : "disabled"}>↑</button><button type="button" data-c="rdown" data-k="${k}" ${k < CFG.roles.length - 1 ? "" : "disabled"}>↓</button></span>
-    <button class="mx" type="button" data-c="rdel" data-k="${k}" aria-label="Убрать роль">×</button></div>`).join("");
+</div>`).join("");
   const used = new Set(CFG.mics.map((m) => m.c));
-  const mics = CFG.mics.map((m, k) => `<div class="cfg-row two">${mic(m.c)}<span>${MIC_PAL[m.c]}</span><button class="mx" type="button" data-c="mdel" data-k="${k}" aria-label="Убрать микрофон">×</button></div>`).join("");
+  const mics = CFG.mics.map((m) => `<div class="cfg-row two">${mic(m.c)}<span>${MIC_PAL[m.c]}</span></div>`).join("");
   const pal = Object.keys(MIC_PAL).map((c) => `<button type="button" data-c="madd" data-m="${c}" title="${MIC_PAL[c]}" ${used.has(c) ? "disabled" : ""}>${mic(c)}</button>`).join("");
   const colT = [["bpm", "Темп"], ["start", "Кто начинает"], ["pray", "Кто молится"], ["sing", "Кто ведёт"]].map(([k, l]) => `<div class="tglrow"><span>${l}</span>${sw(CFG.cols[k], "col", ` data-k="${k}"`)}</div>`).join("");
   const colX = CFG.songCustom.map((c, k) => `<div class="cfg-row two"><span class="muted">≡</span><input type="text" value="${esc(c.name)}" data-c="sxname" data-k="${k}"><button class="mx" type="button" data-c="sxdel" data-k="${k}">×</button></div>`).join("");
   const fT = [["time", "Время и место", "сбор, начало, адрес"], ["dress", "Дресс-код", ""], ["notes", "Пометки", "свободный текст: хор, чек, ссылки"]].map(([k, l, s]) => `<div class="tglrow"><span>${l}${s ? `<small>${s}</small>` : ""}</span>${sw(CFG.fields[k], "fld", ` data-k="${k}"`)}</div>`).join("");
   const fX = CFG.evCustom.map((c, k) => `<div class="cfg-row two"><span class="muted">≡</span><input type="text" value="${esc(c.name)}" data-c="fxname" data-k="${k}"><button class="mx" type="button" data-c="fxdel" data-k="${k}">×</button></div>`).join("");
   openSheet("Настроить таблицу", `<p class="muted shint">У каждой команды своя таблица. «Всегда» — строка роли подсвечивается, если пусто; без него — роль по надобности (скрипка на Рождество).</p>
-    <div class="cfg-h">Состав</div><div class="cfg-list">${roles}</div><div class="tools"><button class="tool" type="button" data-c="radd">+ Роль</button></div>
-    <div class="cfg-h">Вокал</div><div class="cfg-list">${mics}</div><div class="pal" style="margin-top:8px">${pal}</div><p class="muted" style="font-size:13px">Голос без своего микрофона добавляется прямо в служении.</p>
+    <div class="cfg-h">Состав</div><div class="cfg-list">${roles}</div>
+    <div class="cfg-h">Вокал</div><div class="cfg-list">${mics}</div><p class="muted" style="font-size:13px">Добавить, переименовать или убрать строку инструмента или микрофона — в «Править»: «+» под составом и вокалом, нажатие на строку; так она попадёт в таблицу, в лист месяца. Голос без своего микрофона — «+ голос» в служении.</p>
     <div class="cfg-h">Столбцы песен</div>${colT}<div class="cfg-list" style="margin-top:8px">${colX}</div><div class="tools"><button class="tool" type="button" data-c="sxadd">+ Столбец</button></div>
     <div class="cfg-h">Поля служения</div>${fT}<div class="cfg-list" style="margin-top:8px">${fX}</div><div class="tools"><button class="tool" type="button" data-c="fxadd">+ Поле</button></div>
     <div class="addrow" style="margin-top:20px"><button class="btn ghost" type="button" data-c="reset">Сбросить настройки</button></div>`);
@@ -2099,6 +2207,68 @@ function openSheet(title, html, o = {}) {
   $("#sh-x").onclick = closeSheet;
 }
 function closeSheet() { closePop(); $("#layer").innerHTML = ""; }
+const EMO_ROLE = ["🎸", "🥁", "🪕", "🎹", "🎻", "🎺", "🎷", "🪈", "🪗", "🪇", "🎚️", "🎧", "🎙️", "🔔", "💻", "🎼"];
+const EMO_MIC = ["🟩", "🟨", "🟪", "🟧", "🟫", "⬛️", "🟦", "🟥", "⬜️", "🟢", "🟡", "🟣", "🔴", "⭐️"];
+function rowSheet(ri, kind) {
+  const ml = monthLay(S.month);
+  if (!ml) return toast("Строки меняются в таблице — открой график по ссылке на таблицу");
+  const row = ri != null ? ml.L.rows.find((x) => x.ri === ri) : null;
+  kind = row ? row.kind : kind;
+  const role = kind === "role", mon = MON_P[+S.month.slice(5) - 1], monN = monName(S.month), evs = monthEvs().filter((e) => !e.deleted);
+  if (ml.isNew && !evs.length) return toast(`В ${mon} ещё нет служений: сначала добавь служение — лист месяца появится с ним, потом строки`);
+  const hiddenNow = row ? [] : ml.L.rows.filter((x) => x.kind === kind && x.hidden && !evs.some((e) => (role ? e.roles[x.id] : e.vocals.some((v) => v.slot === x.id))));
+  const cur = row ? (role ? FW.rowEmoji(row.label) : row.emoji) : "", emos = role ? EMO_ROLE : EMO_MIC;
+  const pick = (v) => `<button type="button" class="emo" data-e="${esc(v)}" aria-pressed="${v.replace(/️/g, "") === cur.replace(/️/g, "")}">${v}</button>`;
+  openSheet(row ? (role ? `Строка «${roleInfo(row.id, row).name}»` : `Микрофон ${row.emoji}`) : role ? "Новая строка" : "Новый микрофон", `<div class="evf">
+    ${hiddenNow.length ? `<div class="fld"><span>Скрыто в ${esc(mon)} — вернуть</span><div class="qd">${hiddenNow.map((x) => `<button type="button" class="qdb" data-show="${x.ri}">${esc(x.label)}</button>`).join("")}</div></div>` : ""}
+    ${role ? `<label class="fld"><span>Название</span><input id="rw-n" value="${esc(row ? row.name : "")}" placeholder="Скрипка, EG2, Перкуссия" autocomplete="off" spellcheck="false"></label>` : ""}
+    <div class="fld"><span>Значок</span><div class="emos">${emos.map(pick).join("")}</div><input id="rw-e" class="emo-in" value="${esc(cur)}" placeholder="или свой" autocomplete="off" aria-label="Свой значок"></div>
+    <p class="muted" style="font-size:13px;margin:0">Только в ${esc(mon)}: в других месяцах строки не меняются. Новый месяц копирует строки предыдущего.</p>
+    <p class="ef-w" id="rw-w" hidden></p>
+  </div><div class="imp-act"><button class="btn" type="button" id="rw-ok">${row ? "Сохранить" : "Добавить"}</button>${row ? `<button class="btn ghost danger" type="button" id="rw-hide">Убрать в ${esc(mon)}</button>` : ""}</div>`, { done: "Отмена" });
+  const eIn = $("#rw-e"), nIn = $("#rw-n"), warn = (t) => { const w = $("#rw-w"); w.textContent = t; w.hidden = !t; };
+  document.querySelectorAll(".emos .emo").forEach((b) => (b.onclick = () => { eIn.value = b.dataset.e; document.querySelectorAll(".emos .emo").forEach((x) => x.setAttribute("aria-pressed", x === b)); }));
+  const ops = () => (D.rowOps[ml.tab] ||= []), ev0 = evs[0] || { date: S.month + "-01", session: null };
+  const show = withUndo((x) => { ops().push({ op: "show", ri: x.ri }); log(ev0, `${monN}: строка «${x.label}» снова видна`); });
+  document.querySelectorAll("[data-show]").forEach((b) => (b.onclick = () => { show(ml.L.rows.find((x) => x.ri === +b.dataset.show)); closeSheet(); render(); }));
+  $("#rw-ok").onclick = () => {
+    const name = role ? nIn.value.trim() : "", emoji = eIn.value.trim();
+    if (role && !name) return warn("Напиши название");
+    if (!role && !emoji) return warn("Выбери значок микрофона");
+    const label = FW.rowLabel(kind, emoji, name), id = role ? FW.roleId(name) : FW.slotOf(label);
+    const twin = ml.L.rows.find((x) => x.kind === kind && x.id === id && (!row || x.ri !== row.ri));
+    if (twin && !twin.hidden) return warn(`Такая строка в ${mon} уже есть: «${twin.label}»`);
+    if (twin && !row) { show(twin); closeSheet(); return render(); }
+    if (row && label === row.label) return closeSheet();
+    withUndo(() => {
+      if (row) {
+        ops().push({ op: "label", ri: row.ri, label });
+        if (id !== row.id) evs.forEach((e) => {
+          if (role) { e.roles[id] = e.roles[row.id] || ""; delete e.roles[row.id]; }
+          else { e.vocals.forEach((v) => { if (v.slot === row.id) v.slot = id; }); e.mslots = e.mslots.map((x) => (x === row.id ? id : x)); }
+        });
+        log(ev0, `${monN}: строка «${row.label}» → «${label}»`);
+      } else {
+        const last = (k) => ml.L.rows.filter((x) => x.kind === k), firstMic = (last("mic")[0] || {}).ri ?? 999;
+        const at = role ? Math.max(ml.L.songs + 1, ...last("role").filter((x) => x.ri < firstMic).map((x) => x.ri)) + 1 : Math.max(...last("mic").map((x) => x.ri), ml.L.songs + 1) + 1;
+        ops().push({ op: "insert", at, label });
+        evs.forEach((e) => { if (role) e.roles[id] ??= ""; else if (!e.mslots.includes(id)) e.mslots.push(id); });
+        log(ev0, `${monN}: + строка «${label}»`);
+      }
+    })();
+    closeSheet(); render();
+  };
+  if ($("#rw-hide")) $("#rw-hide").onclick = () => {
+    const busy = evs.filter((e) => (role ? e.roles[row.id] : e.vocals.some((v) => v.slot === row.id) && e.vocals.find((v) => v.slot === row.id).name));
+    if (busy.length && !confirm(`В ${busy.length} ${plural(busy.length, "служении", "служениях", "служениях")} в этой строке стоят люди — убрать их и скрыть строку в ${mon}?`)) return;
+    withUndo(() => {
+      busy.forEach((e) => { if (role) e.roles[row.id] = ""; else e.vocals = e.vocals.filter((v) => v.slot !== row.id); });
+      ops().push({ op: "hide", ri: row.ri });
+      log(ev0, `${monN}: строка «${row.label}» убрана (в таблице — скрыта)`);
+    })();
+    closeSheet(); render();
+  };
+}
 const sheetSc = () => { const b = $("#layer .sheet-b"); return b && getComputedStyle(b).overflowY !== "visible" ? b : $("#layer .sheet-panel"); };
 let tt;
 function toast(t) { let el = $("#toast"); if (!el) { el = document.createElement("div"); el.id = "toast"; el.className = "toast"; document.body.append(el); } el.textContent = t; el.hidden = false; clearTimeout(tt); tt = setTimeout(() => (el.hidden = true), 2600); }
@@ -2377,6 +2547,47 @@ function songLine(s, n) {
   [["pray", "🙏"], ["sing", "🎤"]].forEach(([k, mk]) => { if (s[k]) f.push(`${mk} ${bg(canonWho(s[k]), k)}`); else if (fl.has(k + "?")) f.push(`${mk} ?`); });
   CFG.songCustom.forEach((c) => { const v = (s.extra || {})[c.id]; if (v) f.push(`${c.name}: ${v}`); });
   return (fl.has("new") ? "НОВАЯ " : `${n}. `) + [s.name + (s.note ? ` /${s.note}` : ""), ...f].join(" | ");
+}
+function monthLay(m) {
+  if (!BOOK || !S.live) return null;
+  const tab = FW.tabName(m), own = BOOK.sheets.find((s) => s.name === tab), ops = D.rowOps || {};
+  let sh = own;
+  if (!sh) { const src = FW.srcTab(BOOK.sheets, m); if (!src) return null; sh = FW.rowOps(src, ops[src.name]).sheet; }
+  const key = tab + "|" + JSON.stringify(ops[tab] || []) + "|" + (own ? "" : JSON.stringify(ops[sh.name] || []));
+  if (MLC.key === key && MLC.book === BOOK) return MLC.v;
+  const ef = FW.rowOps(sh, ops[tab]).sheet;
+  MLC.key = key; MLC.book = BOOK; MLC.v = { tab, isNew: !own, sheet: ef, L: FW.layoutOf(ef.rows, ef.hidden_rows) };
+  return MLC.v;
+}
+let MLC = {};
+const KIND_RU = { акустика: "AG", барабаны: "Drums", бас: "Bass", электро: "EG", электрогитара: "EG", клавиши: "Keys", скрипка: "Violin", звук: "FOH", звукач: "FOH" };
+function roleKind(id) {
+  if (!id || !id.startsWith("x:")) return id;
+  const n = id.slice(2), base = n.replace(/[\s\d#№.-]+$/u, "");
+  return FW.ROLE_KEYS[base] || KIND_RU[base] || id;
+}
+function roleInfo(id, row) {
+  const kind = roleKind(id), c = CFG.roles.find((r) => r.id === kind), own = row && !row.base;
+  const lay = row || (monthLay(S.month) || { L: { rows: [] } }).L.rows.find((x) => x.kind === "role" && x.id === id);
+  const far = !lay && id.startsWith("x:") ? Object.values(D.layouts || {}).flatMap((L) => L.rows || []).find((x) => x.id === id) : null;
+  const name = own || (lay && !lay.base) ? lay.name : far ? far.name : c ? c.name : id;
+  const ico = (lay && !lay.base) ? `<span class="remo" aria-hidden="true">${esc(lay.emoji || "•")}</span><span class="rsn">${esc(lay.name.slice(0, 4))}</span>` : c ? roleIco(c.id, c.c, 18) || roleBdg(c, true) : `<span class="remo">•</span>`;
+  return { kind, name, ico, req: !!(c && c.req && !(lay && !lay.base)), ri: lay ? lay.ri : -1 };
+}
+function fitRows(e) {
+  const ml = monthLay(e.date.slice(0, 7));
+  if (!ml) return;
+  const rows = ml.L.rows.filter((x) => x.kind === "role");
+  Object.keys(e.roles).forEach((id) => {
+    if (!e.roles[id] || rows.some((x) => x.id === id)) return;
+    const to = rows.find((x) => !x.hidden && roleKind(x.id) === roleKind(id) && !e.roles[x.id]);
+    if (to) { e.roles[to.id] = e.roles[id]; delete e.roles[id]; }
+  });
+}
+const rowTitle = (id) => roleInfo(id).name;
+function micInfo(slot) {
+  const m = CFG.mics.find((x) => x.slot === slot);
+  return m ? { name: "Вокал: " + MIC_PAL[m.c].toLowerCase(), ico: mic(m.c), short: MIC_PAL[m.c].toLowerCase() } : { name: "Вокал " + slot, ico: `${mic("")}<span class="remo">${esc(slot)}</span>`, short: slot };
 }
 const hm = (t) => (t || "").replace(/^0(\d)/, "$1");
 const timeTxt = (e) => [e.meet ? "сбор " + hm(e.meet) : "", e.time ? "начало " + hm(e.time) : ""].filter(Boolean).join(" · ");
@@ -2872,7 +3083,7 @@ async function signIn() {
 }
 function signOut() { try { if (AUTH.tok && window.google) google.accounts.oauth2.revoke(AUTH.tok); } catch {} Object.assign(AUTH, { tok: "", exp: 0, email: "" }); saveAuth(); S.admin = false; render(); }
 
-const abilName = (id) => (abilities().find((x) => x.id === id) || {}).name || id;
+const abilName = (id) => (abilities().find((x) => x.id === id) || {}).name || (id.startsWith("x:") ? roleInfo(id).name : id);
 function abilId(w) { const n = norm(w); const x = abilities().find((a) => norm(a.name) === n || norm(a.id) === n || (a.id === "sing" && /^вед/.test(n)) || (a.id === "pray" && /^мол/.test(n))); return x ? x.id : ""; }
 const RC = FW.ROSTER_HEAD, FULL = "Полное имя";
 const isTg = (c) => /^(telegram|телеграм|tg|тг)\b/i.test(c);
@@ -2927,7 +3138,7 @@ function rosterRows() {
 function setBook(book) {
   BOOK = book;
   const p = FW.parseBook(book.sheets);
-  D = { built: TODAY, sheet: "https://docs.google.com/spreadsheets/d/" + SHEET_ID, tabs: p.tabs, events: p.events, base: p.base, learn: p.learn, library: LIB, roster: p.roster };
+  D = { built: TODAY, sheet: "https://docs.google.com/spreadsheets/d/" + SHEET_ID, tabs: p.tabs, events: p.events, base: p.base, learn: p.learn, library: LIB, roster: p.roster, layouts: p.layouts, rowOps: {} };
   ORIG = {}; UIDN = 0;
   D.events.forEach((e, i) => { prep(e, i); e.orig = FW.groups(e); ORIG[e.uid] = { src: e.src, orig: e.orig }; });
   RO = p.roster ? roFromRows(p.roster, p.rosterHead) : Object.assign({ merge: {}, abil: {}, off: [], on: [], added: [], diff: [], extra: {}, scoped: {} }, S.live ? {} : store.get("roster", {}));
@@ -2936,6 +3147,7 @@ function setBook(book) {
   derive();
 }
 function derive() {
+  D.rowOps ||= {};
   D.events.forEach((e, i) => (e.id = i));
   BASE = D.base.map((b) => ({ ...b, k: norm(b.name) })); byKey = Object.fromEntries(BASE.map((b) => [b.k, b]));
   R = buildRoster(); PEOPLE = peopleList(); history();
@@ -2982,10 +3194,11 @@ function pending() {
   D.events.forEach((e) => {
     if (!e.src) { if (!e.deleted) n++; return; }
     if (e.deleted) { n++; return; }
-    const g = FW.groups(e); if (Object.keys(g).some((k) => JSON.stringify(g[k]) !== JSON.stringify(e.orig[k]))) n++;
+    if (FW.diff(FW.groups(e), e.orig).length) n++;
   });
-  const roster = roSig() !== RO0;
-  return { n: n + (roster ? 1 : 0), events: n, roster };
+  const tabLive = (tab) => (BOOK && BOOK.sheets.some((s) => s.name === tab)) || D.events.some((e) => !e.deleted && FW.tabName(e.date.slice(0, 7)) === tab);
+  const roster = roSig() !== RO0, rows = Object.entries(D.rowOps || {}).filter(([tab, a]) => a.length && tabLive(tab)).length;
+  return { n: n + rows + (roster ? 1 : 0), events: n, roster };
 }
 async function save() {
   if (S.saving) return;
@@ -2994,8 +3207,12 @@ async function save() {
   try {
     if (!authed()) await signIn();
     const meta = await API.meta(), pend = pending();
-    const plan = FW.plan(D.events, { sheets: BOOK.sheets, ids: meta.ids }, pend.roster ? { roster: rosterRows(), rosterHead: rosterHead() } : {});
+    const plan = FW.plan(D.events, { sheets: BOOK.sheets, ids: meta.ids }, { ...(pend.roster ? { roster: rosterRows(), rosterHead: rosterHead() } : {}), rowOps: D.rowOps });
     if (!plan.requests.length) { RO0 = roSig(); return toast("Нечего сохранять — всё уже в таблице"); }
+    if (plan.lost.length) {
+      const what = (x) => `${dShort(x.ev.date)} · ${x.kind === "role" ? rowTitle(x.id) : "вокал " + micInfo(x.id).short}: ${x.value}`;
+      if (!confirm(`В таблицу не попадут — в листе месяца нет таких строк:\n${plan.lost.slice(0, 8).map(what).join("\n")}${plan.lost.length > 8 ? `\nи ещё ${plan.lost.length - 8}` : ""}\n\nСохранить без них? «Отмена» — добавить строку в «Править» («+ Инструмент», «+ Микрофон») или поставить людей в другие строки.`)) return;
+    }
     const tabs = [...new Set(plan.expect.map((x) => x.tab))].filter((t) => t in meta.ids);
     const fresh = tabs.length ? await API.values(tabs) : {}, nm = (t) => String(t ?? "").replace(/\r\n?/g, "\n").trim();
     const bad = plan.expect.filter((x) => nm(((fresh[x.tab] || [])[x.row] || [])[x.col]) !== nm(x.text));
@@ -3009,6 +3226,7 @@ async function save() {
     if (c("новое")) parts.push(`${c("новое")} ${plural(c("новое"), "новое", "новых", "новых")}`);
     if (c("перенос")) parts.push(`перенос: ${c("перенос")}`);
     if (c("удалено")) parts.push(`удалено: ${c("удалено")}`);
+    if (c("строки")) parts.push(`строки листа: ${plan.summary.filter((x) => x.what === "строки").map((x) => x.tab).join(", ")}`);
     if (c("лист")) parts.push(`новый лист: ${plan.summary.filter((x) => x.what === "лист").map((x) => x.tab).join(", ")}`);
     if (c("состав")) parts.push("состав");
     toast(`Сохранено в «${meta.title}»: ${parts.join(", ")}`);
@@ -3018,11 +3236,12 @@ async function save() {
 }
 function conflictSheet(bad, fresh) {
   const rowName = (lab, r) => {
-    const role = FW.ROLES.find(([, k]) => lab.includes(k)), cr = role && CFG.roles.find((x) => x.id === role[0]), mc = CFG.mics.find((m) => lab.includes(m.slot));
-    return lab.startsWith("Song list") ? "песни" : cr ? cr.name.toLowerCase() : lab.includes("🎤") ? `вокал${mc ? " (" + MIC_PAL[mc.c].toLowerCase() + ")" : ""}` : lab.includes("Dress") ? "дресс-код" : lab.includes("Note") ? "пометки" : lab.trim() || "строка " + (r + 1);
+    const rid = !lab.includes("🎤") && !lab.startsWith("Song list") && FW.roleId(FW.rowName(lab));
+    return lab.startsWith("Song list") ? "песни" : lab.includes("🎤") ? `вокал (${micInfo(FW.slotOf(lab)).short})` : rid && !/Dress|Note/.test(lab) ? roleInfo(rid).name.toLowerCase() : lab.includes("Dress") ? "дресс-код" : lab.includes("Note") ? "пометки" : lab.trim() || "строка " + (r + 1);
   };
   const where = (x) => {
     if (x.tab === FW.ROSTER_TAB) return `лист «${x.tab}», строка ${x.row + 1}`;
+    if (x.col === 0) return `лист «${x.tab}», подпись строки ${x.row + 1} — строки в таблице двигали`;
     const lab = ((BOOK.sheets.find((s) => s.name === x.tab) || { rows: [] }).rows[x.row] || [])[0] || "", h = (((fresh[x.tab] || [])[0] || [])[x.col] || "") || x.text;
     return `${(h.match(/^\d{2}\.\d{2}/) || [x.tab])[0]} · ${x.row ? rowName(lab, x.row) : "заголовок столбца"}`;
   };
@@ -3035,11 +3254,11 @@ function conflictSheet(bad, fresh) {
 }
 
 const H = { undo: [], redo: [] };
-const snap = () => JSON.stringify({ ev: D.events, ro: RO, ch: S.changes }, (k, v) => (k === "orig" || k === "src" ? undefined : v));
+const snap = () => JSON.stringify({ ev: D.events, ro: RO, ch: S.changes, ops: D.rowOps }, (k, v) => (k === "orig" || k === "src" ? undefined : v));
 function restore(json) {
   const o = JSON.parse(json);
   o.ev.forEach((e) => { const x = ORIG[e.uid]; if (x) { e.src = x.src; e.orig = x.orig; } });
-  D.events = o.ev; RO = o.ro; S.changes = o.ch; derive();
+  D.events = o.ev; RO = o.ro; S.changes = o.ch; D.rowOps = o.ops || {}; derive();
 }
 function track(before) { if (before == null || before === snap()) return false; H.undo.push(before); if (H.undo.length > 60) H.undo.shift(); H.redo = []; dock(); return true; }
 const withUndo = (fn) => (...a) => { const b = snap(); const r = fn(...a); track(b); return r; };
@@ -3098,12 +3317,13 @@ function evSheet(ev) {
     if (isNew) {
       e = newEvent(d); Object.assign(e, f);
       const cp = $("#ef-copy"), src = cp && cp.value !== "" ? D.events[+cp.value] : null;
-      if (src) { e.roles = { ...src.roles }; e.vocals = src.vocals.map((x) => ({ ...x })); e.extraVocals = src.extraVocals.slice(); }
+      if (src) { e.roles = { ...src.roles }; e.vocals = src.vocals.map((x) => ({ ...x })); e.extraVocals = src.extraVocals.slice(); fitRows(e); }
       log(e, "новое служение" + (src ? ` (состав как ${dShort(src.date)})` : ""));
     } else {
       const was = { ...ev };
       Object.assign(ev, f);
       if (was.date !== f.date) log(ev, `дата ${dShort(was.date)} → ${dShort(f.date)}`);
+      if (was.date.slice(0, 7) !== f.date.slice(0, 7)) fitRows(ev);
       if ((was.title || "") !== f.title) log(ev, `название: ${f.title || "—"}`);
       if ((was.meet || "") !== f.meet || (was.time || "") !== f.time || (was.place || "") !== f.place) log(ev, `время и место: ${[timeTxt(f), f.place].filter(Boolean).join(", ") || "—"}`);
       if ((was.session || null) !== f.session) log(ev, f.session ? `${f.session}-я сессия` : "одна сессия");
