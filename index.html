@@ -130,7 +130,7 @@ table.gt { border-collapse: separate; border-spacing: 0; font-size: 14px; }
 .hidb { width: 16px; min-height: 52px; border: 0; background: none; color: var(--accent-text); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; padding: 0; font-size: 10.5px; font-weight: 900; }
 .mempty { margin-top: 12px; border: 1px dashed var(--box); border-radius: 14px; padding: 32px 16px; text-align: center; color: var(--muted); font-size: 14px; }
 .mempty:empty { display: none; }
-.cw { width: 164px; overflow-wrap: anywhere; }
+.cw { width: var(--cw, 164px); overflow-wrap: anywhere; }  
 .cw.wide { width: auto; min-width: 164px; }
 .gt td.txtc .cw.wide { max-width: 520px; }
 .gt td.edit .cw.wide { min-width: min(18.5rem, 72vw); }  
@@ -153,6 +153,11 @@ table.gt { border-collapse: separate; border-spacing: 0; font-size: 14px; }
 .cs .n { color: var(--muted); font-weight: 700; font-variant-numeric: tabular-nums; }
 .cs .nm { font-weight: 700; }
 .cs .kc { font-size: 12px; padding: 0 5px; min-width: 2em; }
+.cs .kb { display: inline-flex; align-items: baseline; gap: 5px; justify-self: end; white-space: nowrap; }  
+.cs .bpm { font-size: 12px; font-weight: 700; color: var(--muted); font-variant-numeric: tabular-nums; }
+.cs .nm { overflow-wrap: break-word; }
+.gt.measure .cs > li { width: max-content; }    
+.cs .bpm i { font-style: normal; font-weight: 400; }
 .cs .kc.chg::after { display: none; }
 .cs li.sec { display: block; margin-top: 4px; font-size: 10.5px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent-text); }
 .cs li.sec:first-child { margin-top: 0; }
@@ -343,7 +348,7 @@ body.dnd, body.dnd * { cursor: grabbing !important; user-select: none; -webkit-u
   .gt th.rl .rn { display: none; }
   .gt th.rl .rsn { display: block; }  
   .gt th.rl :is(span, .rlb):has(> .rsn) { flex-direction: column; align-items: center; gap: 1px; }
-  .cw { width: 140px; }
+  .cw { width: var(--cw, 140px); }
   .cfg-row .req span { display: none; }
 }
 
@@ -1456,7 +1461,7 @@ const DEF_CFG = {
 let CFG = store.get("cfg", null) || JSON.parse(JSON.stringify(DEF_CFG));
 const saveCfg = () => store.set("cfg", CFG);
 
-const VERSION = "0.13.1";
+const VERSION = "0.14.0";
 const FINE = matchMedia("(pointer: fine)").matches;
 const Q = new URLSearchParams(location.search);
 const S = { live: false, view: Q.get("view") || store.get("view", "grid"), rf: "all", rq: "", showOff: false, me: Q.get("me") ?? store.get("me", ""), admin: Q.get("admin") === "1", month: Q.get("m") || "", hidePast: false, open: new Set(), allOpen: Q.get("open") === "all", changes: [], noteOpen: {} };
@@ -1804,7 +1809,7 @@ function songsCompact(e) {
     if (b.name) out += `<li class="sec">${esc(b.name)}</li>`; else if (bi > 0) out += '<li class="gapl" aria-hidden="true"></li>';
     its.forEach((i) => {
       const si = lv.indexOf(i), a = `<a href="${esc(setUrl(e, si < 0 ? 0 : si + 1))}" target="_blank" rel="noopener" title="${libId(i.name) ? "Открыть чарт в ChartSet" : "Чарта пока нет — откроется название"}">${esc(i.name)}</a>`;
-      if (i.kind === "song") out += `<li class="${i.flags.includes("struck") ? "struck" : ""}"><span class="n">${i.n}</span><span class="nm">${a}${i.flags.includes("new") ? ' <span class="pill ok">новая</span>' : ""}${i.note ? `<span class="snote">${esc(i.note)}</span>` : ""}</span><span class="kc${i.flags.includes("key") ? " chg" : ""}">${keyHTML(kn(i.key))}</span></li>`;
+      if (i.kind === "song") out += `<li class="${i.flags.includes("struck") ? "struck" : ""}"><span class="n">${i.n}</span><span class="nm">${a}${i.flags.includes("new") ? ' <span class="pill ok">новая</span>' : ""}${i.note ? `<span class="snote">${esc(i.note)}</span>` : ""}</span><span class="kb"><span class="kc${i.flags.includes("key") ? " chg" : ""}">${keyHTML(kn(i.key))}</span>${CFG.cols.bpm && i.bpm ? `<span class="bpm" title="Темп">${esc(i.bpm)}${i.flags.includes("bpm?") ? "?" : ""}${i.meter ? ` <i>${esc(i.meter)}</i>` : ""}</span>` : ""}</span></li>`;
       else out += `<li class="nt">${i.kind === "hymn" ? "Сборник: " : ""}${linkify(i.name)}</li>`;
     });
   });
@@ -3540,6 +3545,25 @@ function toNext(gw) {
   gw.scrollLeft = left - rl.offsetWidth - (gw.querySelector("thead th.hidc")?.offsetWidth || 0);
   return true;
 }
+function fitCw() {
+  const g = $(".gwrap"), t = g && g.querySelector(".gt"); if (!t) return;
+  const rows = [...t.querySelectorAll(":scope > thead > tr, :scope > tbody > tr")], sr = rows.find((r) => r.querySelector("td .cs")) || rows.find((r) => r.querySelector("td:not(.hidc)"));
+  if (!sr) return;
+  const W = (el) => el.getBoundingClientRect().width, n = sr.children.length, cells = [...sr.children];
+  const comp = cells.map((c, i) => [c, i]).filter(([c]) => c.tagName === "TD" && !c.classList.contains("hidc") && !c.classList.contains("open") && c.firstElementChild);
+  if (!comp.length) return;
+  const min = innerWidth <= 520 ? 140 : 164, pad = W(comp[0][0]) - W(comp[0][0].firstElementChild);
+  const cap = Math.max(min, Math.floor(g.clientWidth - W(cells[0]) - pad - 28));
+  const lis = comp.map(([c]) => [...c.querySelectorAll(".cs > li:not(.sec):not(.nt):not(.gapl)")]);
+  t.classList.add("measure");
+  const need = lis.map((xs) => xs.reduce((m, li) => Math.max(m, Math.ceil(W(li))), 0));
+  t.classList.remove("measure");
+  comp.forEach(([, i], k) => {
+    const w = Math.min(cap, Math.max(min, need[k])) + "px";
+    rows.forEach((r) => { if (r.children.length === n && r.children[i].style.getPropertyValue("--cw") !== w) r.children[i].style.setProperty("--cw", w); });
+  });
+}
+addEventListener("resize", () => requestAnimationFrame(fitCw));
 function render() {
   cbxClose();
   $("#me-l").textContent = S.me ? "Я: " + S.me : "Я";
@@ -3551,6 +3575,7 @@ function render() {
   document.querySelectorAll("#tabs button").forEach((b) => b.setAttribute("aria-pressed", b.dataset.v === S.view));
   $("#lbar").hidden = !(S.loading || S.saving);
   morph($("#main"), S.view === "team" ? team() : grid());
+  fitCw();
   scrollTo(0, y);
   if (S.focusSec) { const [ev, id] = S.focusSec.split(":"), el = $(`[data-act="secname"][data-ev="${ev}"][data-bid="${id}"]`); S.focusSec = null; if (el) el.focus({ preventScroll: true }); }
   if (S.focusGrip) { const el = $(S.focusGrip); S.focusGrip = null; if (el) el.focus({ preventScroll: true }); }
