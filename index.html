@@ -236,6 +236,9 @@ table.rt { border-collapse: separate; border-spacing: 0; font-size: 14px; min-wi
 .grip:hover { background: var(--chip); color: var(--ink); }
 .grip:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .gs tr.dragging td { opacity: 0.35; }
+.gt tr.rdragging > * { opacity: 0.35; }
+.gt th.rl .rlb[data-ri] { cursor: grab; }
+@media (pointer: coarse) { .gt th.rl .rlb[data-ri] { cursor: pointer; } }
 body.dnd, body.dnd * { cursor: grabbing !important; user-select: none; -webkit-user-select: none; }
 #dropline { position: fixed; z-index: 60; height: 3px; border-radius: 2px; background: var(--accent); box-shadow: 0 0 0 2px var(--bg); pointer-events: none; }
 .gs .ntw { display: flex; align-items: center; gap: 2px; }
@@ -431,6 +434,7 @@ body.dnd, body.dnd * { cursor: grabbing !important; user-select: none; -webkit-u
 .qd .muted { font-size: 12.5px; }
 .qdb { border: 1px solid var(--line); background: var(--bg2); border-radius: 8px; padding: 4px 9px; font-size: 13px; font-weight: 700; }
 .qdb[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.qdb:disabled { opacity: 0.35; cursor: default; }  
 .chk { display: inline-flex; gap: 8px; align-items: center; font-size: 15px; }
 .ef-w { margin: 0; padding: 8px 10px; border-radius: 9px; background: var(--warn-soft); color: var(--warn); font-size: 13.5px; }
 .btn[disabled] { opacity: 0.45; }
@@ -1176,25 +1180,37 @@ FW.srcTab = (sheets, ym) => {
   const months = sheets.filter((s) => tabMonth(s.name) && layoutOf(s.rows).songs > 0).sort((a, b) => (tabMonth(a.name) < tabMonth(b.name) ? -1 : 1));
   return months.filter((s) => tabMonth(s.name) < ym).pop() || months[months.length - 1];
 };
+const mvIdx = (ri, to) => (i) => (i === ri ? to : ri < to && i > ri && i <= to ? i - 1 : ri > to && i >= to && i < ri ? i + 1 : i);
 FW.rowOps = function (sheet, ops) {
   const w = sheet.rows.reduce((m, r) => Math.max(m, r.length), 1), rows = sheet.rows.map((r) => r.slice());
   let hid = new Set(sheet.hidden_rows || []);
-  const from = rows.map((_, i) => i);
+  const from = rows.map((_, i) => i), gone = [];
+  const pad = (n) => { while (rows.length < n) { rows.push(Array(w).fill("")); from.push(-2); } };
   for (const o of ops || []) {
     if (o.op === "insert") {
-      while (rows.length < o.at) { rows.push(Array(w).fill("")); from.push(-2); }
+      pad(o.at);
       const row = Array(w).fill(""); row[0] = o.label;
       rows.splice(o.at, 0, row); from.splice(o.at, 0, -1);
       hid = new Set([...hid].map((i) => (i >= o.at ? i + 1 : i)));
+    } else if (o.op === "delete") {
+      if (o.ri < rows.length) { if (from[o.ri] >= 0) gone.push(from[o.ri]); rows.splice(o.ri, 1); from.splice(o.ri, 1); }
+      hid = new Set([...hid].filter((i) => i !== o.ri).map((i) => (i > o.ri ? i - 1 : i)));
+    } else if (o.op === "move") {
+      pad(Math.max(o.ri, o.to) + 1);
+      const [r] = rows.splice(o.ri, 1), [f] = from.splice(o.ri, 1);
+      rows.splice(o.to, 0, r); from.splice(o.to, 0, f);
+      hid = new Set([...hid].map(mvIdx(o.ri, o.to)));
     } else if (o.op === "hide") hid.add(o.ri);
     else if (o.op === "show") hid.delete(o.ri);
-    else if (o.op === "label") { while (rows.length <= o.ri) { rows.push(Array(w).fill("")); from.push(-2); } rows[o.ri][0] = o.label; }
+    else if (o.op === "label") { pad(o.ri + 1); rows[o.ri][0] = o.label; }
   }
-  return { sheet: { ...sheet, rows, hidden_rows: hid }, from };
+  return { sheet: { ...sheet, rows, hidden_rows: hid }, from, gone };
 };
 FW.rowReqs = (sheetId, ops) => (ops || []).flatMap((o) =>
   o.op === "insert" ? [{ insertDimension: { range: rowRange(sheetId, o.at), inheritFromBefore: true } },
     { updateDimensionProperties: { range: rowRange(sheetId, o.at), properties: { hiddenByUser: false }, fields: "hiddenByUser" } }, cellReq(sheetId, o.at, 0, { text: o.label, runs: [] })]
+  : o.op === "delete" ? [{ deleteDimension: { range: rowRange(sheetId, o.ri) } }]
+  : o.op === "move" ? [{ moveDimension: { source: rowRange(sheetId, o.ri), destinationIndex: o.to > o.ri ? o.to + 1 : o.to } }]
   : o.op === "hide" || o.op === "show" ? [{ updateDimensionProperties: { range: rowRange(sheetId, o.ri), properties: { hiddenByUser: o.op === "hide" }, fields: "hiddenByUser" } }]
   : o.op === "label" ? [cellReq(sheetId, o.ri, 0, { text: o.label, runs: [] })] : []);
 FW.plan = function (events, book, o = {}) {
@@ -1213,6 +1229,10 @@ FW.plan = function (events, book, o = {}) {
     if (!list || !list.length || !sh[tab]) return;
     const r = FW.rowOps(sh[tab], list);
     expLabels(tab);
+    r.gone.forEach((r0) => {
+      const row = sh[tab].rows[r0] || [];
+      for (let c = 1; c < Math.max(row.length, (sh[tab].rows[0] || []).length); c++) expect.push({ tab, row: r0, col: c, text: row[c] || "" });
+    });
     reqs.push(...FW.rowReqs(sid(tab), list));
     orig[tab] = sh[tab]; sh[tab] = r.sheet; from[tab] = r.from;
     summary.push({ tab, what: "строки" });
@@ -1341,6 +1361,17 @@ FW.apply = function (book, requests) {
     }
     s.hidden_rows = new Set([...(s.hidden_rows || [])].filter((r) => !(d < 0 && r === at)).map((r) => (r >= at ? r + d : r)));
   };
+  const moveRow = (s, ri, to) => {
+    const w = s.rows.reduce((m, r) => Math.max(m, r.length), 1), mv = mvIdx(ri, to);
+    while (s.rows.length <= Math.max(ri, to)) s.rows.push(Array(w).fill(""));
+    const [r] = s.rows.splice(ri, 1); s.rows.splice(to, 0, r);
+    for (const key of ["cells", "links"]) {
+      const out = {};
+      Object.entries(s[key]).forEach(([k, v]) => { const [r0, c] = k.split(",").map(Number); out[mv(r0) + "," + c] = v; });
+      s[key] = out;
+    }
+    s.hidden_rows = new Set([...(s.hidden_rows || [])].map(mv));
+  };
   for (const q of requests) {
     const [type, a] = Object.entries(q)[0], S = byId();
     if (type === "updateCells") {
@@ -1357,6 +1388,11 @@ FW.apply = function (book, requests) {
       }));
     } else if (type === "insertDimension") (a.range.dimension === "ROWS" ? shiftRow : shift)(S[a.range.sheetId], a.range.startIndex, 1);
     else if (type === "deleteDimension") (a.range.dimension === "ROWS" ? shiftRow : shift)(S[a.range.sheetId], a.range.startIndex, -1);
+    else if (type === "moveDimension") {
+      if (a.source.dimension !== "ROWS") throw new Error("apply: перенос столбцов не умею");
+      const ri = a.source.startIndex, d = a.destinationIndex;
+      moveRow(S[a.source.sheetId], ri, d > ri ? d - 1 : d);
+    }
     else if (type === "updateDimensionProperties") {
       const s = S[a.range.sheetId], set = a.range.dimension === "ROWS" ? (s.hidden_rows ||= new Set()) : s.hidden_cols;
       if (a.properties.hiddenByUser) set.add(a.range.startIndex); else set.delete(a.range.startIndex);
@@ -1419,7 +1455,7 @@ const DEF_CFG = {
 let CFG = store.get("cfg", null) || JSON.parse(JSON.stringify(DEF_CFG));
 const saveCfg = () => store.set("cfg", CFG);
 
-const VERSION = "0.11.0";
+const VERSION = "0.12.0";
 const FINE = matchMedia("(pointer: fine)").matches;
 const Q = new URLSearchParams(location.search);
 const S = { live: false, view: Q.get("view") || store.get("view", "grid"), rf: "all", rq: "", showOff: false, me: Q.get("me") ?? store.get("me", ""), admin: Q.get("admin") === "1", month: Q.get("m") || "", hidePast: false, open: new Set(), allOpen: Q.get("open") === "all", changes: [], noteOpen: {} };
@@ -1900,15 +1936,15 @@ function grid() {
   const ML = monthLay(S.month), rowsOf = (k) => ML.L.rows.filter((x) => x.kind === k && (!x.hidden || evs.some((e) => (k === "role" ? e.roles[x.id] : e.vocals.some((v) => v.slot === x.id)))));
   const roleList = ML ? rowsOf("role").map((x) => ({ ...x, r: roleInfo(x.id, x) }))
     : CFG.roles.filter((r) => r.req || evs.some((e) => e.roles[r.id]) || S.admin).map((r) => ({ id: r.id, r: roleInfo(r.id) }));
-  const rowHead = (x, inner, title) => S.admin && ML ? `<th class="rl"><button class="rlb" type="button" data-act="rowedit" data-ri="${x.ri}" title="${esc(title)} — переименовать, сменить значок, убрать в этом месяце">${inner}</button></th>` : `<th class="rl" title="${esc(title)}"><span>${inner}</span></th>`;
+  const rowHead = (x, inner, title) => S.admin && ML ? `<th class="rl"><button class="rlb" type="button" data-act="rowedit" data-ri="${x.ri}" title="${esc(title)} — переименовать, сменить значок, переставить или удалить в этом месяце${FINE ? "; перетащить — поменять порядок" : ""}">${inner}</button></th>` : `<th class="rl" title="${esc(title)}"><span>${inner}</span></th>`;
   const addRow = (k, label) => S.admin && ML ? `<tr class="addr"><th class="rl"><button class="rlb add" type="button" data-act="rowadd" data-k="${k}" title="Добавить строку в этом месяце: ${label.toLowerCase()}"><span class="addr-i">+</span><span class="rn">${label}</span></button></th>${hc}${evs.map((e) => td(e, "", noneEv(e) ? "none" : "")).join("")}</tr>` : "";
-  const roleRows = roleList.map(({ id, r }) => `<tr>${rowHead({ ri: r.ri }, `${r.ico}<span class="rn">${esc(r.name)}</span>`, r.name)}${hc}${evs.map((e) => {
+  const roleRows = roleList.map(({ id, r }) => `<tr${ML ? ` data-rri="${r.ri}"` : ""}>${rowHead({ ri: r.ri }, `${r.ico}<span class="rn">${esc(r.name)}</span>`, r.name)}${hc}${evs.map((e) => {
     const v = e.roles[id] || "";
     if (S.admin) return td(e, personSel(e, id, v));
     return td(e, noneEv(e) ? "" : v ? esc(showN(v, r.kind)) : r.req ? "нет" : "", noneEv(e) ? "none" : !v ? (r.req ? "empty" : "") : ask(v) ? "ask" : meIn(v, r.kind) ? "me" : "");
   }).join("")}</tr>`).join("") + addRow("role", "Инструмент");
   const micList = ML ? rowsOf("mic") : CFG.mics.map((m) => ({ id: m.slot }));
-  const vocRows = micList.map((x) => { const m = micInfo(x.id); return `<tr>${rowHead(x, m.ico, m.name)}${hc}${evs.map((e) => {
+  const vocRows = micList.map((x) => { const m = micInfo(x.id); return `<tr${ML ? ` data-rri="${x.ri}"` : ""}>${rowHead(x, m.ico, m.name)}${hc}${evs.map((e) => {
     const v = e.vocals.find((y) => y.slot === x.id);
     if (S.admin) return td(e, personSel(e, x.id, v ? v.name : "", "voc"));
     return td(e, v ? esc(showN(v.name, "voc")) : "", noneEv(e) ? "none" : v && meIn(v.name, "voc") ? "me" : "");
@@ -2035,7 +2071,7 @@ function act(el, type) {
     return;
   }
   if (a === "impall" && click) return importSheet(null);
-  if (a === "rowedit" && click) return rowSheet(+el.dataset.ri);
+  if (a === "rowedit" && click) { if (Date.now() < (S.noClickTill || 0)) return; return rowSheet(+el.dataset.ri); }
   if (a === "rowadd" && click) return rowSheet(null, el.dataset.k);
   if (!ev) return;
   const it = ev.items[i];
@@ -2163,7 +2199,7 @@ function cfgSheet() {
   const fX = CFG.evCustom.map((c, k) => `<div class="cfg-row two"><span class="muted">≡</span><input type="text" value="${esc(c.name)}" data-c="fxname" data-k="${k}"><button class="mx" type="button" data-c="fxdel" data-k="${k}">×</button></div>`).join("");
   openSheet("Настроить таблицу", `<p class="muted shint">У каждой команды своя таблица. «Всегда» — строка роли подсвечивается, если пусто; без него — роль по надобности (скрипка на Рождество).</p>
     <div class="cfg-h">Состав</div><div class="cfg-list">${roles}</div>
-    <div class="cfg-h">Вокал</div><div class="cfg-list">${mics}</div><p class="muted" style="font-size:13px">Добавить, переименовать или убрать строку инструмента или микрофона — в «Править»: «+» под составом и вокалом, нажатие на строку; так она попадёт в таблицу, в лист месяца. Голос без своего микрофона — «+ голос» в служении.</p>
+    <div class="cfg-h">Вокал</div><div class="cfg-list">${mics}</div><p class="muted" style="font-size:13px">Добавить, переименовать, переставить или удалить строку инструмента или микрофона — в «Править»: «+» под составом и вокалом, нажатие на строку; так она попадёт в таблицу, в лист месяца. Голос без своего микрофона — «+ голос» в служении.</p>
     <div class="cfg-h">Столбцы песен</div>${colT}<div class="cfg-list" style="margin-top:8px">${colX}</div><div class="tools"><button class="tool" type="button" data-c="sxadd">+ Столбец</button></div>
     <div class="cfg-h">Поля служения</div>${fT}<div class="cfg-list" style="margin-top:8px">${fX}</div><div class="tools"><button class="tool" type="button" data-c="fxadd">+ Поле</button></div>
     <div class="addrow" style="margin-top:20px"><button class="btn ghost" type="button" data-c="reset">Сбросить настройки</button></div>`);
@@ -2219,13 +2255,15 @@ function rowSheet(ri, kind) {
   const hiddenNow = row ? [] : ml.L.rows.filter((x) => x.kind === kind && x.hidden && !evs.some((e) => (role ? e.roles[x.id] : e.vocals.some((v) => v.slot === x.id))));
   const cur = row ? (role ? FW.rowEmoji(row.label) : row.emoji) : "", emos = role ? EMO_ROLE : EMO_MIC;
   const pick = (v) => `<button type="button" class="emo" data-e="${esc(v)}" aria-pressed="${v.replace(/️/g, "") === cur.replace(/️/g, "")}">${v}</button>`;
+  const sibs = row ? rowSibs(ml, row, evs) : [], si = sibs.findIndex((x) => x.ri === ri);
   openSheet(row ? (role ? `Строка «${roleInfo(row.id, row).name}»` : `Микрофон ${row.emoji}`) : role ? "Новая строка" : "Новый микрофон", `<div class="evf">
     ${hiddenNow.length ? `<div class="fld"><span>Скрыто в ${esc(mon)} — вернуть</span><div class="qd">${hiddenNow.map((x) => `<button type="button" class="qdb" data-show="${x.ri}">${esc(x.label)}</button>`).join("")}</div></div>` : ""}
     ${role ? `<label class="fld"><span>Название</span><input id="rw-n" value="${esc(row ? row.name : "")}" placeholder="Скрипка, EG2, Перкуссия" autocomplete="off" spellcheck="false"></label>` : ""}
     <div class="fld"><span>Значок</span><div class="emos">${emos.map(pick).join("")}</div><input id="rw-e" class="emo-in" value="${esc(cur)}" placeholder="или свой" autocomplete="off" aria-label="Свой значок"></div>
+    ${sibs.length > 1 && si >= 0 ? `<div class="fld"><span>Порядок</span><div class="qd"><button type="button" class="qdb" id="rw-up" ${si > 0 ? "" : "disabled"}>↑ Выше</button><button type="button" class="qdb" id="rw-dn" ${si < sibs.length - 1 ? "" : "disabled"}>↓ Ниже</button><span class="muted">${si + 1}-я из ${sibs.length}${FINE ? " · в «Править» строку можно перетащить за название" : ""}</span></div></div>` : ""}
     <p class="muted" style="font-size:13px;margin:0">Только в ${esc(mon)}: в других месяцах строки не меняются. Новый месяц копирует строки предыдущего.</p>
     <p class="ef-w" id="rw-w" hidden></p>
-  </div><div class="imp-act"><button class="btn" type="button" id="rw-ok">${row ? "Сохранить" : "Добавить"}</button>${row ? `<button class="btn ghost danger" type="button" id="rw-hide">Убрать в ${esc(mon)}</button>` : ""}</div>`, { done: "Отмена" });
+  </div><div class="imp-act"><button class="btn" type="button" id="rw-ok">${row ? "Сохранить" : "Добавить"}</button>${row ? `<button class="btn ghost danger" type="button" id="rw-del">Удалить в ${esc(mon)}</button>` : ""}</div>`, { done: "Отмена" });
   const eIn = $("#rw-e"), nIn = $("#rw-n"), warn = (t) => { const w = $("#rw-w"); w.textContent = t; w.hidden = !t; };
   document.querySelectorAll(".emos .emo").forEach((b) => (b.onclick = () => { eIn.value = b.dataset.e; document.querySelectorAll(".emos .emo").forEach((x) => x.setAttribute("aria-pressed", x === b)); }));
   const ops = () => (D.rowOps[ml.tab] ||= []), ev0 = evs[0] || { date: S.month + "-01", session: null };
@@ -2258,16 +2296,33 @@ function rowSheet(ri, kind) {
     })();
     closeSheet(); render();
   };
-  if ($("#rw-hide")) $("#rw-hide").onclick = () => {
-    const busy = evs.filter((e) => (role ? e.roles[row.id] : e.vocals.some((v) => v.slot === row.id) && e.vocals.find((v) => v.slot === row.id).name));
-    if (busy.length && !confirm(`В ${busy.length} ${plural(busy.length, "служении", "служениях", "служениях")} в этой строке стоят люди — убрать их и скрыть строку в ${mon}?`)) return;
+  const move = (k) => { const to = withUndo(() => rowMoveTo(ml, row, k, evs))(); render(); if (to != null) rowSheet(to); };
+  if ($("#rw-up")) $("#rw-up").onclick = () => move(si - 1);
+  if ($("#rw-dn")) $("#rw-dn").onclick = () => move(si + 2);
+  if ($("#rw-del")) $("#rw-del").onclick = () => {
+    const busy = evs.filter((e) => (role ? e.roles[row.id] : e.vocals.some((v) => v.slot === row.id && v.name)));
+    if (busy.length && !confirm(`В ${busy.length} ${plural(busy.length, "служении", "служениях", "служениях")} в этой строке стоят люди — удалить строку из листа (${monN}) вместе с ними?`)) return;
     withUndo(() => {
-      busy.forEach((e) => { if (role) e.roles[row.id] = ""; else e.vocals = e.vocals.filter((v) => v.slot !== row.id); });
-      ops().push({ op: "hide", ri: row.ri });
-      log(ev0, `${monN}: строка «${row.label}» убрана (в таблице — скрыта)`);
+      evs.forEach((e) => { if (role) delete e.roles[row.id]; else { e.vocals = e.vocals.filter((v) => v.slot !== row.id); e.mslots = e.mslots.filter((x) => x !== row.id); } });
+      ops().push({ op: "delete", ri: row.ri });
+      log(ev0, `${monN}: строка «${row.label}» удалена`);
     })();
     closeSheet(); render();
   };
+}
+function rowSibs(ml, x, evs) {
+  const firstMic = (ml.L.rows.find((r) => r.kind === "mic") || {}).ri ?? 1e9, side = (r) => (r.kind === "mic" ? "m" : r.ri < firstMic ? "a" : "b");
+  const busy = (r) => evs.some((e) => (r.kind === "role" ? e.roles[r.id] : e.vocals.some((v) => v.slot === r.id)));
+  return ml.L.rows.filter((r) => side(r) === side(x) && (!r.hidden || busy(r)));
+}
+function rowMoveTo(ml, x, k, evs) {
+  const s = rowSibs(ml, x, evs), i = s.findIndex((r) => r.ri === x.ri);
+  if (i < 0 || k < 0 || k > s.length || k === i || k === i + 1) return null;
+  const T = s[Math.min(k, s.length - 1)], to = k === s.length ? T.ri : T.ri > x.ri ? T.ri - 1 : T.ri;
+  (D.rowOps[ml.tab] ||= []).push({ op: "move", ri: x.ri, to });
+  const ev0 = evs[0] || { date: S.month + "-01", session: null };
+  log(ev0, `${monName(S.month)}: строка «${x.label}» — ${k === s.length ? `после «${T.label}»` : `перед «${T.label}»`}`);
+  return to;
 }
 const sheetSc = () => { const b = $("#layer .sheet-b"); return b && getComputedStyle(b).overflowY !== "visible" ? b : $("#layer .sheet-panel"); };
 let tt;
@@ -3476,9 +3531,43 @@ main.addEventListener("pointermove", (e) => {
   if (e.clientY < 90) scrollBy(0, -10); else if (e.clientY > innerHeight - 60) scrollBy(0, 10);
 });
 main.addEventListener("pointerup", () => dragEnd(true));
+let RDRAG = null;
+main.addEventListener("pointerdown", (e) => {
+  const b = e.target.closest(".gt th.rl .rlb[data-ri]"); if (!b || e.button > 0 || e.pointerType !== "mouse" || !S.admin) return;
+  RDRAG = { ri: +b.dataset.ri, y0: e.clientY, on: false, k: null };
+  try { b.setPointerCapture(e.pointerId); } catch {}
+});
+main.addEventListener("pointermove", (e) => {
+  const d = RDRAG; if (!d) return;
+  if (!d.on) {
+    if (Math.abs(e.clientY - d.y0) < 6) return;
+    const ml = monthLay(S.month), x = ml && ml.L.rows.find((r) => r.ri === d.ri); if (!x) { RDRAG = null; return; }
+    const sibs = rowSibs(ml, x, monthEvs().filter((v) => !v.deleted)), trs = sibs.map((r) => $(`.gt tbody tr[data-rri="${r.ri}"]`));
+    if (sibs.length < 2 || trs.some((t) => !t)) { RDRAG = null; return; }
+    Object.assign(d, { on: true, ml, x, trs, me: $(`.gt tbody tr[data-rri="${d.ri}"]`) });
+    d.me.classList.add("rdragging"); document.body.classList.add("dnd");
+  }
+  e.preventDefault();
+  const rc = d.trs.map((t) => t.getBoundingClientRect()), gaps = rc.map((r, k) => ({ k, y: r.top })).concat([{ k: rc.length, y: rc[rc.length - 1].bottom }]);
+  const g = gaps.reduce((m, x) => (Math.abs(x.y - e.clientY) < Math.abs(m.y - e.clientY) ? x : m), gaps[0]), w = $(".gwrap").getBoundingClientRect();
+  d.k = g.k;
+  let ln = $("#dropline"); if (!ln) { ln = document.createElement("div"); ln.id = "dropline"; document.body.append(ln); }
+  Object.assign(ln.style, { top: g.y - 1.5 + "px", left: w.left + "px", width: w.width + "px" });
+  if (e.clientY < 90) scrollBy(0, -10); else if (e.clientY > innerHeight - 60) scrollBy(0, 10);
+});
+const rdragEnd = (ok) => {
+  const d = RDRAG; RDRAG = null; if (!d || !d.on) return;
+  const ln = $("#dropline"); if (ln) ln.remove();
+  document.body.classList.remove("dnd"); if (d.me) d.me.classList.remove("rdragging");
+  S.noClickTill = Date.now() + 400;
+  if (ok && d.k != null) { withUndo(() => rowMoveTo(d.ml, d.x, d.k, monthEvs().filter((v) => !v.deleted)))(); render(); }
+};
+main.addEventListener("pointerup", () => rdragEnd(true));
+main.addEventListener("pointercancel", () => rdragEnd(false));
 main.addEventListener("pointercancel", () => dragEnd(false));
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape" && DRAG) return dragEnd(false);
+  if (e.key === "Escape" && RDRAG) return rdragEnd(false);
   const g = e.target.closest && e.target.closest(".grip"); if (!g || (e.key !== "ArrowUp" && e.key !== "ArrowDown")) return;
   e.preventDefault();
   const ev = D.events[+g.dataset.ev], dir = e.key === "ArrowUp" ? -1 : 1, before = snap();
